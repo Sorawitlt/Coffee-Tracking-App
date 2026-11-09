@@ -5,7 +5,7 @@
 A local-first PWA to log, guide, and improve your coffee brewing. Works offline on any device; exports to Excel / Google Sheets.
 
 - 📋 แผนการพัฒนาและสเปก: [docs/PLAN.md](docs/PLAN.md)
-- สถานะ: ขั้นที่ 0–2 เสร็จแล้ว — ขั้นต่อไป: ขั้นที่ 3 คลังเมล็ด & อุปกรณ์
+- สถานะ: ขั้นที่ 0–3 เสร็จแล้ว — ขั้นต่อไป: ขั้นที่ 4 บันทึกการชง
 
 ## เริ่มใช้งาน (Development)
 

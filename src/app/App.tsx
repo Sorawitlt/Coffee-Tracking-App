@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import BeansPage from '../features/beans/BeansPage'
 
 const TABS = [
   { id: 'brew', icon: '☕', label: 'ชง' },
@@ -16,10 +17,14 @@ export default function App() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-xl flex-col">
       <main className="flex-1 p-4">
-        <h1 className="text-2xl font-bold">Brew Log</h1>
-        <p className="mt-2 text-stone-600 dark:text-stone-400">
-          {current.icon} {current.label} — เร็ว ๆ นี้
-        </p>
+        <h1 className="mb-4 text-2xl font-bold">Brew Log</h1>
+        {tab === 'beans' ? (
+          <BeansPage />
+        ) : (
+          <p className="text-stone-600 dark:text-stone-400">
+            {current.icon} {current.label} — เร็ว ๆ นี้
+          </p>
+        )}
       </main>
       <nav aria-label="เมนูหลัก" className="sticky bottom-0 grid grid-cols-4 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-stone-700 dark:bg-stone-800">
         {TABS.map((t) => (

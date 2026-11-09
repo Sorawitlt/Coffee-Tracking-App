@@ -194,6 +194,15 @@ Settings { language, units, theme, lastBackupAt, defaultMethod }
 - `balance` แทน `acidity` เดิม เพราะ "Acidity" ในกาแฟ Specialty เป็นรสที่ดี ไม่ใช่อาการผิดปกติ — ชื่อใหม่ตรงกับสไลเดอร์ เปรี้ยว↔ขม
 - Dial-in Advisor คืนค่าเป็น **รหัส** (`kind`, `adjustment`, `notes`) ไม่ใช่ข้อความ → แปลภาษาที่ UI
 
+**กติกาที่ล็อกไว้ในขั้น 3** (โค้ด: `src/db/beans.ts`, `src/db/gear.ts`, `src/features/beans|gear/`)
+- **ลบเมล็ดที่มีประวัติการชงไม่ได้** (`BeanInUseError`) → ใช้ Archive แทน; เมล็ดที่ Archive ซ่อนจากรายการ แต่ประวัติและ Insights ยังอ้างอิงได้ (ขั้น 4 ต้องไม่ให้เลือกเมล็ดที่ Archive ตอนชงใหม่: ใช้ `listBeans()` ค่าเริ่มต้น)
+- **ลบอุปกรณ์ได้เสมอ** และไม่แตะประวัติการชง → `Brew.grinderId/brewerId` อาจชี้ไปอุปกรณ์ที่ไม่มีแล้ว ฝั่งประวัติ (ขั้น 7) ต้องแสดงเป็น "อุปกรณ์ที่ลบแล้ว"
+- ฟิลด์ที่ไม่มีค่า = ไม่มีคีย์ในฐานข้อมูล (`stripUndefined`); ส่ง `undefined` ใน `updateBean/updateGear` = ล้างฟิลด์
+- `remainingG` ติดลบได้ในฐานข้อมูล แต่ UI แสดง ≥ 0 (`remainingDisplayG`); ใกล้หมด = ≤ 20% ของถุงหรือ ≤ 30 g
+- วันที่คั่วในฟอร์ม **ไม่มีค่าเริ่มต้น** (กัน "วันหลังคั่ว" ผิดโดยไม่รู้ตัว) และห้ามเป็นวันในอนาคต
+- ตัวเลขในฟอร์มเก็บเป็น string แล้วแปลงด้วย `parseNumber` (รับ `,` เป็นทศนิยม) · Hook `useLive()` (`src/db/useLive.ts`) อ่าน IndexedDB แบบสด ใช้ซ้ำได้ในขั้นถัดไป
+- ข้อความภาษาไทยยัง hard-code ในคอมโพเนนต์ ยกเว้นป้ายตัวเลือกที่รวมไว้ที่ `features/labels.ts` → ย้ายเข้า i18n ในขั้น 9
+
 ---
 
 ## 7. โครงสร้างโปรเจกต์
@@ -227,7 +236,7 @@ src/
 | 0 | แผนแม่บท (เอกสารนี้) | `docs/PLAN.md` | Opus 5.5 | medium ✅ เสร็จแล้ว |
 | 1 | Scaffold: Vite + React + TS + Tailwind + PWA + Dexie + Vitest + CI (GitHub Actions) | `npm run dev` / `test` / `build` ผ่าน, ติดตั้งเป็นแอปได้ | Sonnet 5.5 | low ✅ เสร็จแล้ว |
 | 2 | Domain + DB: schema, สูตรคำนวณ, default recipes, dial-in rules + unit tests | Test ครอบคลุมสูตรคำนวณ & กฎทั้งหมด | **Opus 5.5** | medium ✅ เสร็จแล้ว |
-| 3 | คลังเมล็ด & อุปกรณ์ (CRUD + วันหลังคั่ว + คงเหลือ) | เพิ่ม/แก้/ลบ/Archive ได้ | Sonnet 5.5 | medium |
+| 3 | คลังเมล็ด & อุปกรณ์ (CRUD + วันหลังคั่ว + คงเหลือ) | เพิ่ม/แก้/ลบ/Archive ได้ | Sonnet 5.5 | medium ✅ เสร็จแล้ว |
 | 4 | บันทึกการชง (Quick log, เติมค่าอัตโนมัติ, ชงซ้ำ, ไฮไลต์ค่าที่เปลี่ยน) | บันทึกได้ใน ≤ 30 วินาที | Sonnet 5.5 | medium |
 | 5 | ผู้ช่วยชง (Timer + ขั้นตอน + เสียง/สั่น + Wake Lock) | ชง V60/Espresso ตามแอปได้จริง | Sonnet 5.5 | high |
 | 6 | ชิม & Dial-in Advisor (UI การชิม + แสดงคำแนะนำ + ติดดาวสูตรดีที่สุด) | ได้คำแนะนำ 1 ข้อหลังบันทึก | Sonnet 5.5 | medium |
