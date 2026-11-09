@@ -52,3 +52,13 @@ export function isValidGrindScale(scale: { min: number; max: number; step: numbe
   const { min, max, step } = scale
   return [min, max, step].every(Number.isFinite) && min < max && step > 0 && step <= max - min
 }
+
+/**
+ * ปัดค่าให้ตรง "ขั้น" ของสเกลเบอร์บด (นับจาก `min`) — เช่น ขั้นละ 0.5 → 12.3 กลายเป็น 12.5
+ * ใช้ตั้งจุดเริ่มปุ่ม +/− จากช่วงที่ผู้ผลิตแนะนำ; ปัดทศนิยม 4 ตำแหน่งกันเลขทศนิยมลอย (0.1 + 0.2)
+ */
+export function snapToStep(value: number, step: number, min = 0): number {
+  if (!(step > 0) || !Number.isFinite(value)) return value
+  const snapped = min + Math.round((value - min) / step) * step
+  return Math.round(snapped * 10_000) / 10_000
+}

@@ -3,7 +3,7 @@ import {
   createBackup, getSettings, isStoragePersistent, markBackedUp, readTables, requestPersistentStorage, useLive,
 } from '../../db'
 import { backupCounts } from '../../domain/backup'
-import { beansToCsv, brewsToCsv } from '../../domain/export'
+import { beansToCsv, brewsToCsv, gearToCsv } from '../../domain/export'
 import { Button } from '../../components/Button'
 import { useI18n } from '../../i18n/I18nProvider'
 import { formatDateTime } from '../format'
@@ -60,10 +60,10 @@ export default function DataPage({ onClose }: { onClose: () => void }) {
   const exportCsv = (kind: Exclude<ExportKind, 'backup'>) =>
     run(async () => {
       const { beans, gear, brews } = await readTables()
-      const csv = kind === 'brews' ? brewsToCsv(brews, beans, gear) : beansToCsv(beans)
+      const csv = kind === 'brews' ? brewsToCsv(brews, beans, gear) : kind === 'beans' ? beansToCsv(beans) : gearToCsv(gear)
       const name = exportFileName(kind)
       downloadTextFile(name, csv, MIME_CSV)
-      const rows = kind === 'brews' ? brews.length : beans.length
+      const rows = kind === 'brews' ? brews.length : kind === 'beans' ? beans.length : gear.length
       return (tt) => tt('data.csvDone', { name, rows })
     })
 
@@ -119,6 +119,7 @@ export default function DataPage({ onClose }: { onClose: () => void }) {
         <div className="grid gap-2 sm:grid-cols-2">
           <Button disabled={busy} onClick={() => void exportCsv('brews')}>{t('data.csvBrews')}</Button>
           <Button disabled={busy} onClick={() => void exportCsv('beans')}>{t('data.csvBeans')}</Button>
+          <Button disabled={busy} onClick={() => void exportCsv('gear')}>{t('data.csvGear')}</Button>
         </div>
       </Card>
 

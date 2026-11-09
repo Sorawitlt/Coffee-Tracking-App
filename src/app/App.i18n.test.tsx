@@ -247,6 +247,12 @@ describe('โหมดอังกฤษ — ไม่มีข้อควา�
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Please enter the bean name')).toBeInTheDocument()
     expectNoThai()
+    // ฐานข้อมูลอ้างอิงเมล็ด: แหล่งอ้างอิงของราชการไทย (กรมวิชาการเกษตร / ทะเบียน GI) แสดงชื่ออังกฤษ
+    await user.type(screen.getByLabelText('Variety'), 'Chumphon 2')
+    await user.type(screen.getByLabelText('Origin'), 'Thailand, Chiang Rai (Doi Tung)')
+    expect(screen.getByRole('link', { name: /Chumphon Horticultural Research Center/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Geographical Indication register/ })).toBeInTheDocument()
+    expectNoThai()
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     // เมล็ดที่ยังไม่มีประวัติการชงลบได้ (มีประวัติ = ลบไม่ได้ ต้องใช้ Archive แทน); กลับจากฟอร์มแล้วตัวเลือก "แสดงที่ Archive" รีเซ็ต
     await user.click(await screen.findByLabelText(/Show archived/))
@@ -264,6 +270,17 @@ describe('โหมดอังกฤษ — ไม่มีข้อควา�
     expect(await screen.findByText('Please enter the gear name')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Min'), '5')
     await user.click(screen.getByRole('button', { name: 'Save' }))
+    expectNoThai()
+    // ฐานข้อมูลอ้างอิงอุปกรณ์: ผลค้นหา → การ์ดสเปก/หมายเหตุ/แหล่งอ้างอิง
+    await user.type(screen.getByRole('searchbox', { name: /Find your model/ }), 'df64')
+    expectNoThai()
+    await user.click(screen.getByRole('button', { name: /DF Grinders DF64 Gen 2/ }))
+    expect(screen.getByRole('region', { name: 'From the reference catalog' })).toBeInTheDocument()
+    expectNoThai()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    // อุปกรณ์เดิมที่ยังไม่เชื่อม → แอปเดารุ่นให้
+    await user.click(await screen.findByRole('button', { name: /^Comandante/ }))
+    expect(await screen.findByText(/Is it one of these/)).toBeInTheDocument()
     expectNoThai()
   })
 

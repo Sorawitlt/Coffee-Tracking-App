@@ -10,6 +10,7 @@ A local-first PWA to log, guide, and improve your coffee brewing. Works offline 
 
 - 📘 คู่มือผู้ใช้: [ภาษาไทย](docs/USER_GUIDE.md) · [English](docs/USER_GUIDE.en.md)
 - 📋 แผนการพัฒนาและสเปก: [docs/PLAN.md](docs/PLAN.md)
+- 📚 ฐานข้อมูลอ้างอิง (อุปกรณ์ 42 รุ่น · สายพันธุ์ · แหล่งปลูก — ทุกรายการมีแหล่งอ้างอิง): [docs/CATALOG.md](docs/CATALOG.md)
 - สถานะ: Phase 1 ครบทั้ง 11 ขั้น (ไทย/English, โหมดสว่าง/มืด, ผ่าน WCAG 2.2 AA, ใช้ออฟไลน์ได้, Deploy บน GitHub Pages)
 
 ## เริ่มใช้งาน (Development)

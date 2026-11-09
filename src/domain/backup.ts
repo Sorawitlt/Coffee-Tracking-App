@@ -266,6 +266,10 @@ const GEAR_SCHEMA: Schema<Gear> = {
   id,
   type: oneOf(GEAR_TYPES),
   name: str,
+  // เพิ่มทีหลัง (ไม่บังคับ) → ไฟล์สำรองเก่าที่ไม่มีฟิลด์เหล่านี้ยังนำเข้าได้ ไม่ต้องเพิ่ม formatVersion
+  brand: optional(str),
+  model: optional(str),
+  catalogId: optional(str),
   grindScale: optional(grindScale),
   notes: optional(str),
   createdAt: iso,

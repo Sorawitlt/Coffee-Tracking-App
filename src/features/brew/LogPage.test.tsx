@@ -212,6 +212,21 @@ describe('บันทึกการชงเร็ว', () => {
     await user.click(inc)
     expect(screen.getByLabelText('เบอร์บด')).toHaveValue('12') // ไม่เกิน max
   })
+
+  it('เครื่องบดที่เชื่อมฐานข้อมูล → แสดงช่วงที่ผู้ผลิตแนะนำตามวิธีชง และปุ่ม + เริ่มกลางช่วง', async () => {
+    await seedBean()
+    await db.gear.add({
+      id: 'g1', type: 'grinder', name: 'C40', brand: 'Comandante', model: 'C40 MK4 Nitro Blade', catalogId: 'comandante-c40-mk4',
+      grindScale: { min: 0, max: 40, step: 1 }, createdAt: 't', updatedAt: 't',
+    })
+    const { user } = setup()
+    await user.click(await screen.findByRole('button', { name: '+ บันทึกการชง' }))
+    await user.selectOptions(await screen.findByLabelText('เครื่องบด'), 'C40')
+    // ค่าเริ่มต้นของแอป = V60 → Comandante FAQ: pour over 18–35
+    expect(screen.getByText(/ผู้ผลิตแนะนำ 18–35 สำหรับ V60/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'เพิ่ม เบอร์บด' }))
+    expect(screen.getByLabelText('เบอร์บด')).toHaveValue('27') // (18 + 35) / 2 = 26.5 → ปัดตามขั้น
+  })
 })
 
 describe('ชงซ้ำ', () => {

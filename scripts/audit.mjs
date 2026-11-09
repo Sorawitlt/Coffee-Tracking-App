@@ -186,11 +186,18 @@ async function runAxe(browser) {
     await scan('เมล็ด (รายการ)')
     await click(both('bean.list.add'))
     await scan('เมล็ด — ฟอร์มเพิ่มเมล็ด')
+    await page.getByLabel(both('bean.form.variety')).fill('Gesha')
+    await scan('เมล็ด — ฟอร์ม + แหล่งอ้างอิงสายพันธุ์')
     await nav(2)
     await click(both('bean.page.gear'))
     await scan('อุปกรณ์ (รายการ)')
     await click(both('gear.list.add'))
     await scan('อุปกรณ์ — ฟอร์มเพิ่ม')
+    await page.getByRole('searchbox').fill('df64')
+    await scan('อุปกรณ์ — ค้นหาฐานข้อมูลอ้างอิง')
+    await click(/DF Grinders DF64 Gen 2/)
+    await page.getByRole('region', { name: both('catalog.card.title') }).locator('summary').click()
+    await scan('อุปกรณ์ — การ์ดฐานข้อมูล + แหล่งอ้างอิง')
 
     await nav(3)
     await page.locator('.recharts-surface').first().waitFor()
@@ -272,7 +279,7 @@ function sampleBackup() {
     { id: 'b3', name: 'Brazil Cerrado', roaster: 'Local', origin: 'Brazil', roastLevel: 'mediumDark', roastDate: day(60), weightG: 500, remainingG: 0, category: 'coffee', archived: false, ...stamp },
   ]
   const gear = [
-    { id: 'g1', type: 'grinder', name: 'Comandante C40', grindScale: { min: 1, max: 40, step: 1 }, ...stamp },
+    { id: 'g1', type: 'grinder', name: 'Comandante C40', brand: 'Comandante', model: 'C40 MK4 Nitro Blade', catalogId: 'comandante-c40-mk4', grindScale: { min: 0, max: 40, step: 1 }, ...stamp },
     { id: 'g2', type: 'brewer', name: 'Hario V60', ...stamp },
   ]
   const brew = (i, o) => ({

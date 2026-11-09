@@ -1,11 +1,14 @@
-import { useState, type FormEvent } from 'react'
-import { BeanInUseError, addBean, countBrewsOfBean, deleteBean, setBeanArchived, updateBean, useLive } from '../../db'
+import { useId, useMemo, useState, type FormEvent } from 'react'
+import { BeanInUseError, addBean, countBrewsOfBean, deleteBean, listBeans, setBeanArchived, updateBean, useLive } from '../../db'
+import { findOrigin, findVariety, originValue } from '../../domain/catalog'
+import { CatalogRef } from '../catalog/CatalogRef'
+import { originOptions, roasterOptions, varietyOptions, type SuggestOption } from './beanSuggest'
 import { Button } from '../../components/Button'
 import { NumberField, SelectField, TextAreaField, TextField } from '../../components/fields'
 import { BEAN_PROCESSES, ROAST_LEVELS } from '../../domain/inventory'
 import type { Bean, BeanProcess, RoastLevel } from '../../domain/types'
 import type { MessageKey, MessageParams } from '../../i18n'
-import { useT } from '../../i18n/I18nProvider'
+import { useI18n } from '../../i18n/I18nProvider'
 import { CURRENCIES, PROCESS_KEY, ROAST_LEVEL_KEY } from '../labels'
 import { DEFAULT_CURRENCY, beanToForm, emptyBeanForm, validateBeanForm, type BeanFormErrors, type BeanFormValues } from './beanForm'
 import { toLocalDate } from '../../domain/calc'
@@ -17,7 +20,12 @@ interface Props {
 }
 
 export function BeanForm({ bean, onDone }: Props) {
-  const t = useT()
+  const { t, lang } = useI18n()
+  const listId = useId()
+  const allBeans = useLive(() => listBeans({ includeArchived: true }))
+  const roasters = useMemo(() => roasterOptions(allBeans ?? []), [allBeans])
+  const varieties = useMemo(() => varietyOptions(lang), [lang])
+  const origins = useMemo(() => originOptions(lang), [lang])
   const mode = bean ? 'edit' : 'add'
   const [values, setValues] = useState<BeanFormValues>(() => (bean ? beanToForm(bean) : emptyBeanForm()))
   const [errors, setErrors] = useState<BeanFormErrors>({})
@@ -74,18 +82,26 @@ export function BeanForm({ bean, onDone }: Props) {
         placeholder={t('bean.form.namePlaceholder')} onChange={(e) => set('name', e.target.value)} />
 
       <div className="grid grid-cols-2 gap-3">
-        <TextField label={t('bean.form.roaster')} value={values.roaster} onChange={(e) => set('roaster', e.target.value)} />
-        <TextField label={t('bean.form.origin')} value={values.origin} onChange={(e) => set('origin', e.target.value)} />
+        <TextField label={t('bean.form.roaster')} value={values.roaster} list={`${listId}-roaster`} autoComplete="off"
+          onChange={(e) => set('roaster', e.target.value)} />
+        <TextField label={t('bean.form.origin')} value={values.origin} list={`${listId}-origin`} autoComplete="off"
+          onChange={(e) => set('origin', e.target.value)} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <TextField label={t('bean.form.variety')} value={values.variety} onChange={(e) => set('variety', e.target.value)} />
+        <TextField label={t('bean.form.variety')} value={values.variety} list={`${listId}-variety`} autoComplete="off"
+          onChange={(e) => set('variety', e.target.value)} />
         <SelectField label={t('bean.form.process')} value={values.process}
           onChange={(e) => set('process', e.target.value as BeanProcess | '')}>
           <option value="">{t('common.notSpecified')}</option>
           {BEAN_PROCESSES.map((p) => <option key={p} value={p}>{t(PROCESS_KEY[p])}</option>)}
         </SelectField>
       </div>
+
+      <Suggestions id={`${listId}-roaster`} options={roasters} />
+      <Suggestions id={`${listId}-origin`} options={origins} />
+      <Suggestions id={`${listId}-variety`} options={varieties} />
+      <BeanRefs origin={values.origin} variety={values.variety} />
 
       <div className="grid grid-cols-2 gap-3">
         <SelectField label={t('bean.form.roastLevel')} required value={values.roastLevel}
@@ -153,5 +169,26 @@ export function BeanForm({ bean, onDone }: Props) {
         </div>
       )}
     </form>
+  )
+}
+
+function Suggestions({ id, options }: { id: string; options: SuggestOption[] }) {
+  return (
+    <datalist id={id}>
+      {options.map((o) => <option key={o.value} value={o.value} label={o.label} />)}
+    </datalist>
+  )
+}
+
+/** แสดงแหล่งอ้างอิงเมื่อแหล่งปลูก/สายพันธุ์ที่กรอกตรงกับฐานข้อมูล */
+function BeanRefs({ origin, variety }: { origin: string; variety: string }) {
+  const o = findOrigin(origin)
+  const v = findVariety(variety)
+  if (!o && !v) return null
+  return (
+    <div className="space-y-1">
+      {o && <CatalogRef name={originValue(o)} sources={o.sources} />}
+      {v && <CatalogRef name={v.name} sources={v.sources} />}
+    </div>
   )
 }
