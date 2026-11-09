@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#6f4e37" />
+    <meta name="description" content="Brew Log — บันทึกและช่วยชงกาแฟ" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Brew Log</title>
+    <!-- ใส่ธีมก่อนวาดเฟรมแรก (กันจอกะพริบสีขาวในโหมดมืด) — สำเนาย่อของ src/theme/theme.ts: แก้ที่หนึ่งต้องแก้อีกที่ -->
+    <script>
+      (function () {
+        var t = 'system'
+        try { t = localStorage.getItem('brewlog.theme') || 'system' } catch (e) {}
+        var dark = t === 'dark' || (t !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)
+        var r = document.documentElement
+        if (dark) r.classList.add('dark')
+        r.style.colorScheme = dark ? 'dark' : 'light'
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#1c1917' : '#6f4e37')
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
