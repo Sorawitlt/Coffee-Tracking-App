@@ -202,3 +202,12 @@ export function dialInInputFromBrew(
 export function adviseForBrew(...args: Parameters<typeof dialInInputFromBrew>): Advice {
   return advise(dialInInputFromBrew(...args))
 }
+
+/**
+ * คำแนะนำที่ควรเก็บไว้กับบันทึกการชง (snapshot ณ ตอนบันทึก)
+ * ข้อมูลยังไม่พอวินิจฉัย (`needTasting`) = ไม่เก็บ → `undefined`
+ */
+export function adviceToStore(...args: Parameters<typeof dialInInputFromBrew>): Advice | undefined {
+  const advice = adviseForBrew(...args)
+  return advice.kind === 'needTasting' ? undefined : advice
+}

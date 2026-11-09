@@ -1,3 +1,4 @@
+import type { FlavorGroup, FlavorTag } from '../domain/flavors'
 import type { BeanProcess, GearType, Method, RoastLevel, StepAction } from '../domain/types'
 
 /**
@@ -83,4 +84,67 @@ export const STEP_ACTION_HINT: Record<StepAction, string> = {
   removeFromHeat: 'ยกลงเมื่อกาแฟเริ่มมีเสียงฟู่ แช่ฐานในน้ำเย็นเพื่อหยุดสกัด',
   filter: 'กรองแยกกากออกจากน้ำกาแฟ',
   custom: '',
+}
+
+// ---------- ผลชิม (ขั้น 6) ----------
+
+/** สมดุลรสชาติ −2..+2 (เรียงจากซ้ายไปขวา) */
+export const BALANCE_OPTIONS = [
+  { value: -2, label: 'เปรี้ยวมาก' },
+  { value: -1, label: 'เปรี้ยว' },
+  { value: 0, label: 'สมดุล' },
+  { value: 1, label: 'ขม' },
+  { value: 2, label: 'ขมมาก' },
+] as const
+
+/** ความเข้ม/บอดี้ −2..+2 */
+export const BODY_OPTIONS = [
+  { value: -2, label: 'บางมาก' },
+  { value: -1, label: 'บาง' },
+  { value: 0, label: 'พอดี' },
+  { value: 1, label: 'หนัก' },
+  { value: 2, label: 'หนักมาก' },
+] as const
+
+/** ความหวาน 0..4 */
+export const SWEETNESS_OPTIONS = [
+  { value: 0, label: 'ไม่หวาน' },
+  { value: 1, label: 'น้อย' },
+  { value: 2, label: 'ปานกลาง' },
+  { value: 3, label: 'หวาน' },
+  { value: 4, label: 'หวานมาก' },
+] as const
+
+export const FLAVOR_GROUP_LABEL: Record<FlavorGroup, string> = {
+  fruity: 'ผลไม้',
+  floral: 'ดอกไม้ / ชา',
+  sweet: 'หวาน',
+  nutty: 'ถั่ว / ช็อกโกแลต',
+  spice: 'เครื่องเทศ',
+  roasted: 'กลิ่นคั่ว',
+  other: 'อื่น ๆ',
+}
+
+export const FLAVOR_TAG_LABEL: Record<FlavorTag, string> = {
+  berry: 'เบอร์รี่',
+  citrus: 'ส้ม / ซิตรัส',
+  stoneFruit: 'พีช / ลูกพลัม',
+  tropical: 'ผลไม้เขตร้อน',
+  driedFruit: 'ผลไม้แห้ง',
+  floral: 'ดอกไม้',
+  tea: 'ชา',
+  honey: 'น้ำผึ้ง',
+  caramel: 'คาราเมล',
+  brownSugar: 'น้ำตาลทรายแดง',
+  vanilla: 'วานิลลา',
+  nutty: 'ถั่ว',
+  chocolate: 'ช็อกโกแลต',
+  spice: 'เครื่องเทศ',
+  toasty: 'ขนมปังปิ้ง',
+  smoky: 'ควัน',
+  burnt: 'ไหม้',
+  woody: 'ไม้',
+  earthy: 'ดิน',
+  fermented: 'หมัก / แอลกอฮอล์',
+  vegetal: 'หญ้า / เขียว',
 }

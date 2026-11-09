@@ -38,6 +38,16 @@ export function BrewCard({ brew, bean, onOpen, onRepeat }: Props) {
             {formatDateTime(brew.brewedAt)}
           </time>
         </div>
+        {(brew.rating !== undefined || brew.isBest) && (
+          <p className="mt-1 text-base">
+            {brew.rating !== undefined && (
+              <span role="img" aria-label={`${brew.rating} ดาว`} className="text-amber-600 dark:text-amber-400">
+                {'★'.repeat(brew.rating)}{'☆'.repeat(5 - brew.rating)}
+              </span>
+            )}
+            {brew.isBest && <span className="ml-2 font-semibold text-amber-800 dark:text-amber-300">⭐ สูตรที่ดีที่สุด</span>}
+          </p>
+        )}
         <p className="mt-1 text-base tabular-nums">
           {formatGrams(brew.doseG)} g : {formatGrams(brew.waterG)} g
           <span className="ml-2 font-semibold">{formatRatio(m.ratio)}</span>

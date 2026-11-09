@@ -3,10 +3,17 @@ import { getBrew, listBeans, listBrews, useLive } from '../../db'
 import { Button } from '../../components/Button'
 import { BrewCard } from './BrewCard'
 import { BrewForm } from './BrewForm'
+import { BrewResult } from './BrewResult'
 
 const PAGE_SIZE = 50
 
-type View = { kind: 'list' } | { kind: 'new' } | { kind: 'repeat'; id: string } | { kind: 'edit'; id: string }
+type View =
+  | { kind: 'list' }
+  | { kind: 'new' }
+  | { kind: 'repeat'; id: string }
+  | { kind: 'edit'; id: string }
+  /** หลังบันทึก: หน้า "ครั้งหน้าลอง …" */
+  | { kind: 'result'; id: string; message: string }
 
 interface Props {
   /** พาไปแท็บเมล็ดเมื่อยังไม่มีเมล็ดให้เลือก */
@@ -29,10 +36,18 @@ export default function LogPage({ onGoToBeans }: Props) {
     setNotice(message)
     setView({ kind: 'list' })
   }
+  // บันทึกแล้วมีคำแนะนำ → ไปหน้าคำแนะนำก่อน แล้วค่อยกลับรายการ
+  const afterForm = (message?: string, adviceBrewId?: string) => {
+    if (message && adviceBrewId) setView({ kind: 'result', id: adviceBrewId, message })
+    else toList(message)
+  }
 
-  if (view.kind === 'new') return <BrewForm mode="new" onDone={toList} onGoToBeans={onGoToBeans} />
+  if (view.kind === 'new') return <BrewForm mode="new" onDone={afterForm} onGoToBeans={onGoToBeans} />
   if (view.kind === 'repeat' || view.kind === 'edit') {
-    return <BrewById key={`${view.kind}-${view.id}`} id={view.id} mode={view.kind} onDone={toList} onGoToBeans={onGoToBeans} />
+    return <BrewById key={`${view.kind}-${view.id}`} id={view.id} mode={view.kind} onDone={afterForm} onGoToBeans={onGoToBeans} />
+  }
+  if (view.kind === 'result') {
+    return <BrewResult brewId={view.id} message={view.message} onDone={() => toList(view.message)} />
   }
   return (
     <BrewList
@@ -47,7 +62,7 @@ export default function LogPage({ onGoToBeans }: Props) {
 function BrewById({ id, mode, onDone, onGoToBeans }: {
   id: string
   mode: 'repeat' | 'edit'
-  onDone: (message?: string) => void
+  onDone: (message?: string, adviceBrewId?: string) => void
   onGoToBeans: () => void
 }) {
   // `null` = ไม่พบ (เช่น ถูกลบไปแล้ว), `undefined` = กำลังโหลด

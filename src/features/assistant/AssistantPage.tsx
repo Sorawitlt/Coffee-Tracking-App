@@ -4,6 +4,7 @@ import { getDefaultRecipe } from '../../domain/recipes'
 import { reopenTimer } from '../../domain/timer'
 import { formatDuration } from '../format'
 import { BrewForm, type BrewFormPrefill } from '../brew/BrewForm'
+import { BrewResult } from '../brew/BrewResult'
 import { BrewingScreen } from './BrewingScreen'
 import { FinishedScreen } from './FinishedScreen'
 import {
@@ -29,7 +30,7 @@ const noop = () => undefined
  * แท็บ "ชง": เตรียมชง → พร้อมชง (ดูขั้นตอน) → จับเวลา + ขั้นตอน → สรุป → บันทึกการชง
  *
  * ตัวเซสชันเก็บใน localStorage ทุกครั้งที่เปลี่ยน → ปิด/เปิดแอปกลางคันแล้วกลับมาชงต่อได้
- * ขั้นชิม & คำแนะนำการปรับ (ขั้น 6) จะต่อจากฟอร์มบันทึกหลังชง
+ * ฟอร์มบันทึกหลังชงมีส่วนชิม & ให้คะแนน แล้วต่อด้วยหน้าคำแนะนำ "ครั้งหน้าลอง …" (ขั้น 6)
  */
 export default function AssistantPage({ active = true, onGoToBeans }: Props) {
   const [session, setSession] = useState<AssistantSession | undefined>(loadSession)
@@ -37,6 +38,8 @@ export default function AssistantPage({ active = true, onGoToBeans }: Props) {
   const [notice, setNotice] = useState<Notice>()
   /** ค่าตั้งที่กรอกไว้ตอนย้อนกลับจากหน้าพร้อมชงมาแก้ไข */
   const [setupPrefill, setSetupPrefill] = useState<BrewFormPrefill>()
+  /** บันทึกแล้วมีคำแนะนำ → แสดงหน้า "ครั้งหน้าลอง …" (เซสชันถูกล้างไปแล้วตั้งแต่ตอนบันทึก) */
+  const [result, setResult] = useState<{ brewId: string; message: string }>()
 
   // ข้อความยืนยันหายเองหลังไม่กี่วินาที
   useEffect(() => {
@@ -96,11 +99,18 @@ export default function AssistantPage({ active = true, onGoToBeans }: Props) {
     commit(undefined)
   }
 
-  function saved(message?: string) {
+  function saved(message?: string, adviceBrewId?: string) {
     setSaving(false)
     if (!message) return // กดยกเลิกในฟอร์ม → กลับไปหน้าสรุป ผลการชงยังอยู่
+    // ล้างเซสชันทันทีที่บันทึกสำเร็จ — ปิดแอปที่หน้าคำแนะนำแล้วกลับมาต้องไม่เห็นหน้าสรุปให้บันทึกซ้ำ
     commit(undefined)
-    setNotice({ text: message, tone: 'ok' })
+    if (adviceBrewId) setResult({ brewId: adviceBrewId, message })
+    else setNotice({ text: message, tone: 'ok' })
+  }
+
+  function closeResult() {
+    if (result) setNotice({ text: result.message, tone: 'ok' })
+    setResult(undefined)
   }
 
   const finished = session?.timer.status === 'finished'
@@ -124,7 +134,9 @@ export default function AssistantPage({ active = true, onGoToBeans }: Props) {
       )}
 
       {/* key แยกฟอร์มเตรียมชงกับฟอร์มบันทึก — เป็นคอมโพเนนต์เดียวกัน ถ้าไม่แยก React จะใช้ state เดิมต่อ */}
-      {!session ? (
+      {!session && result ? (
+        <BrewResult key="result" brewId={result.brewId} message={result.message} onDone={closeResult} />
+      ) : !session ? (
         <BrewForm key="setup" mode="start" prefill={setupPrefill} onStart={(input) => void start(input)} onDone={noop} onGoToBeans={onGoToBeans} />
       ) : finished && saving ? (
         <BrewForm

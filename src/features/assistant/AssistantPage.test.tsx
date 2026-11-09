@@ -190,6 +190,34 @@ describe('ชง V60 ตามผู้ช่วย → บันทึก', () 
     expect(screen.getByText(/เติมค่าจากการชงครั้งล่าสุดของเมล็ดนี้/)).toBeInTheDocument()
   })
 
+  it('ชิมหลังชง → บันทึก → หน้า “ครั้งหน้าลอง” (เซสชันถูกล้างตั้งแต่บันทึก กันบันทึกซ้ำ) → เสร็จสิ้นกลับหน้าเตรียมชง', async () => {
+    await seedBean()
+    const { user } = setup()
+    await screen.findByRole('form', { name: 'เตรียมชง' })
+    await clickStartBrew(user)
+    await clickStartTimer(user)
+    advance(171)
+    await user.click(screen.getByRole('button', { name: '✓ เสร็จสิ้น' }))
+    await user.click(await screen.findByRole('button', { name: 'บันทึกการชง' }))
+
+    await user.click(await screen.findByRole('button', { name: '3 ดาว' }))
+    await user.click(screen.getByRole('button', { name: 'ขม' }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+
+    const advice = await screen.findByRole('region', { name: 'คำแนะนำสำหรับครั้งหน้า' })
+    expect(within(advice).getByText(/สกัดมากไป/)).toBeInTheDocument()
+    // ไม่ได้ระบุเครื่องบด/เบอร์บด → ปรับบดไม่ได้ → ข้ามไปแนะนำอุณหภูมิ (94 → 92)
+    expect(within(advice).getByText('น้ำเย็นลง 2 °C (94 → 92 °C)')).toBeInTheDocument()
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+    expect(await db.brews.count()).toBe(1)
+    expect((await db.brews.toArray())[0]).toMatchObject({ rating: 3, balance: 1, totalTimeSec: 171 })
+
+    await user.click(screen.getByRole('button', { name: 'เสร็จสิ้น' }))
+    expect(await screen.findByText('✓ บันทึกการชงแล้ว')).toBeInTheDocument()
+    expect(await screen.findByRole('form', { name: 'เตรียมชง' })).toBeInTheDocument()
+    expect(await db.brews.count()).toBe(1)
+  })
+
   it('ไฮไลต์ค่าที่ต่างจากครั้งก่อนในฟอร์มบันทึกหลังชง (ปรับทีละตัวแปร)', async () => {
     const bean = await seedBean()
     await addBrew({

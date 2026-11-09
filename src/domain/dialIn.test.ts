@@ -1,4 +1,4 @@
-import { advise, adviseForBrew, dialInInputFromBrew, type DialInInput } from './dialIn'
+import { advise, adviceToStore, adviseForBrew, dialInInputFromBrew, type DialInInput } from './dialIn'
 
 const v60: DialInInput = { method: 'v60', doseG: 15, waterG: 240, tempC: 94, totalTimeSec: 180, grindSetting: 20 }
 const espresso: DialInInput = { method: 'espresso', doseG: 18, waterG: 36, tempC: 93, grindSetting: 10 }
@@ -200,5 +200,27 @@ describe('adviseForBrew / dialInInputFromBrew', () => {
   it('ไม่มีเครื่องบดและเบอร์บด → ถือว่ากาแฟบดสำเร็จ → แนะนำอุณหภูมิแทน', () => {
     const a = adviseForBrew({ ...brew, grinderId: undefined, grindSetting: undefined })
     expect(a.adjustment).toMatchObject({ variable: 'temp' })
+  })
+})
+
+describe('adviceToStore — คำแนะนำที่เก็บกับบันทึก', () => {
+  const brew = {
+    method: 'v60' as const, doseG: 15, waterG: 240, grindSetting: 20, tempC: 94, totalTimeSec: 180,
+    brewedAt: '2026-11-09T01:00:00.000Z', grinderId: 'g1',
+  }
+
+  it('ยังไม่มีผลชิม → ไม่เก็บ (undefined)', () => {
+    expect(adviceToStore(brew)).toBeUndefined()
+  })
+
+  it('มีผลชิม → เก็บคำแนะนำ (บดละเอียดขึ้นเมื่อเปรี้ยว)', () => {
+    const a = adviceToStore({ ...brew, balance: -2 })
+    expect(a?.kind).toBe('underExtracted')
+    expect(a?.adjustment).toMatchObject({ variable: 'grind', direction: 'finer', from: 20, to: 19 })
+  })
+
+  it('Espresso ไหลเร็วเกินไป → เก็บคำแนะนำได้แม้ไม่ได้ชิม (เวลาเป็นค่าที่วัดจริง)', () => {
+    const a = adviceToStore({ ...brew, method: 'espresso', waterG: 36, doseG: 18, totalTimeSec: 15 })
+    expect(a?.kind).toBe('espressoFast')
   })
 })

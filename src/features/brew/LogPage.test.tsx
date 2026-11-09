@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { addBean, addBrew, db } from '../../db'
+import { addBean, addBrew, addGear, db } from '../../db'
 import { toLocalDate } from '../../domain/calc'
 import LogPage from './LogPage'
 
@@ -299,5 +299,218 @@ describe('แก้ไข / ลบ', () => {
     const [newest] = await screen.findAllByRole('button', { name: /^แก้ไขบันทึก V60/ })
     await user.click(newest)
     expect(await screen.findByText('▲ เปลี่ยน · ครั้งก่อน 20')).toBeInTheDocument()
+  })
+})
+
+describe('ชิม & ให้คะแนน → ครั้งหน้าลอง (Dial-in Advisor)', () => {
+  const openNewForm = async (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(await screen.findByRole('button', { name: '+ บันทึกการชง' }))
+
+  /** เมล็ด + เครื่องบด + การชงครั้งก่อน (เบอร์ 20) ให้ฟอร์มใหม่เติมเบอร์บดมาให้ */
+  async function seedWithGrinder() {
+    const bean = await seedBean()
+    const grinder = await addGear({ type: 'grinder', name: 'Niche', grindScale: { min: 0, max: 50, step: 1 } })
+    await addBrew({
+      brewedAt: hoursAgo(24), method: 'v60', beanId: bean.id, grinderId: grinder.id, doseG: 15, waterG: 240,
+      grindSetting: 20, tempC: 94,
+    })
+    return { bean, grinder }
+  }
+
+  it('ให้ดาว + เลือกรส 2 แตะ → บันทึก → ได้คำแนะนำ “บดละเอียดขึ้น 1 ขั้น” ตามกฎเปรี้ยว', async () => {
+    const { bean } = await seedWithGrinder()
+    const { user } = setup()
+    await openNewForm(user)
+
+    await user.click(await screen.findByRole('button', { name: '2 ดาว' }))
+    await user.click(screen.getByRole('button', { name: 'เปรี้ยวมาก' }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+
+    const advice = await screen.findByRole('region', { name: 'คำแนะนำสำหรับครั้งหน้า' })
+    expect(within(advice).getByText(/สกัดน้อยไป/)).toBeInTheDocument()
+    expect(within(advice).getByText('บดละเอียดขึ้น 1 ขั้น (เบอร์ 20 → 19)')).toBeInTheDocument()
+    // ทางเลือกสำรองตามลำดับ: อุณหภูมิ → เวลา (ยังไม่ได้จับเวลา จึงมีแค่อุณหภูมิ)
+    expect(within(advice).getByText('น้ำร้อนขึ้น 2 °C (94 → 96 °C)')).toBeInTheDocument()
+
+    const saved = (await db.brews.orderBy('brewedAt').last())!
+    expect(saved).toMatchObject({ beanId: bean.id, rating: 2, balance: -2, isBest: false })
+    expect(saved.advice).toMatchObject({ kind: 'underExtracted', adjustment: { variable: 'grind', direction: 'finer', to: 19 } })
+
+    await user.click(screen.getByRole('button', { name: 'เสร็จสิ้น' }))
+    const cards = await screen.findAllByRole('article')
+    expect(within(cards[0]).getByRole('img', { name: '2 ดาว' })).toBeInTheDocument()
+  })
+
+  it('ไม่กรอกผลชิม → บันทึกตรงกลับรายการ (ไม่มีหน้าคำแนะนำ ไม่เก็บ advice)', async () => {
+    await seedBean()
+    const { user } = setup()
+    await openNewForm(user)
+    await user.click(await screen.findByRole('button', { name: 'บันทึก' }))
+    expect(await screen.findByText('✓ บันทึกการชงแล้ว')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'คำแนะนำสำหรับครั้งหน้า' })).not.toBeInTheDocument()
+    expect(await db.brews.toArray()).toEqual([expect.not.objectContaining({ advice: expect.anything() })])
+  })
+
+  it('ให้ดาวอย่างเดียว: ช่องรสที่ไม่ได้แตะไม่ถูกบันทึกเป็น 0 (แยก “ไม่ได้ชิม” ออกจาก “สมดุล”)', async () => {
+    await seedBean()
+    const { user } = setup()
+    await openNewForm(user)
+    await user.click(await screen.findByRole('button', { name: '5 ดาว' }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+    // 5 ดาวโดยไม่บอกรส → ไม่มีอาการผิดปกติ จึงแนะนำคงสูตร
+    expect(await screen.findByText(/อร่อยแล้ว/)).toBeInTheDocument()
+    const saved = (await db.brews.toArray())[0]
+    expect(saved.rating).toBe(5)
+    expect(saved).not.toHaveProperty('balance')
+    expect(saved).not.toHaveProperty('body')
+  })
+
+  it('ให้ 2 ดาวอย่างเดียว → ไม่ยืนยันว่า “สมดุล” แต่บอกให้เพิ่มรสชาติเพื่อแนะนำตรงขึ้น', async () => {
+    await seedBean()
+    const { user } = setup()
+    await openNewForm(user)
+    await user.click(await screen.findByRole('button', { name: '2 ดาว' }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+    expect(await screen.findByText('ยังไม่พบอาการที่ต้องปรับ')).toBeInTheDocument()
+    expect(screen.getByText(/บอกรสชาติ \(เปรี้ยว\/ขม\/บอดี้\) เพิ่ม/)).toBeInTheDocument()
+    expect(screen.queryByText(/สมดุล/)).not.toBeInTheDocument()
+  })
+
+  it('แตะค่าที่เลือกอยู่ซ้ำ = ยกเลิกการเลือก', async () => {
+    await seedBean()
+    const { user } = setup()
+    await openNewForm(user)
+    const star = await screen.findByRole('button', { name: '4 ดาว' })
+    await user.click(star)
+    expect(star).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '2 ดาว' })).toHaveAttribute('aria-pressed', 'false')
+    await user.click(star)
+    expect(star).toHaveAttribute('aria-pressed', 'false')
+    const bitter = screen.getByRole('button', { name: 'ขมมาก' })
+    await user.click(bitter)
+    await user.click(bitter)
+    expect(bitter).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('อร่อยแล้ว → ติดดาวสูตรที่ดีที่สุดได้ในแตะเดียว และย้ายดาวจากรายการเดิมของเมล็ด+วิธีเดียวกัน', async () => {
+    const { bean } = await seedWithGrinder()
+    const older = await addBrew({
+      brewedAt: hoursAgo(48), method: 'v60', beanId: bean.id, doseG: 15, waterG: 240, rating: 4, isBest: true,
+    })
+    const { user } = setup()
+    await openNewForm(user)
+    await user.click(await screen.findByRole('button', { name: '5 ดาว' }))
+    await user.click(screen.getByRole('button', { name: 'สมดุล' }))
+    await user.click(screen.getByRole('button', { name: 'พอดี' }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+
+    expect(await screen.findByText(/อร่อยแล้ว/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '⭐ บันทึกเป็นสูตรที่ดีที่สุดของเมล็ดนี้' }))
+    const unstar = await screen.findByRole('button', { name: /เป็นสูตรที่ดีที่สุดของเมล็ดนี้ \(กดเพื่อยกเลิก\)/ })
+    expect(unstar).toHaveAttribute('aria-pressed', 'true')
+
+    const best = (await db.brews.toArray()).filter((b) => b.isBest)
+    expect(best).toHaveLength(1)
+    expect(best[0].rating).toBe(5)
+    expect((await db.brews.get(older.id))!.isBest).toBe(false)
+
+    await user.click(screen.getByRole('button', { name: 'เสร็จสิ้น' }))
+    expect(await screen.findByText('⭐ สูตรที่ดีที่สุด')).toBeInTheDocument()
+  })
+
+  it('ติดดาวสูตรที่ดีที่สุดจากช่องเลือกในฟอร์มก็ได้ (ตอนแก้ไขบันทึก)', async () => {
+    const bean = await seedBean()
+    const brew = await addBrew({ brewedAt: hoursAgo(2), method: 'v60', beanId: bean.id, doseG: 15, waterG: 240 })
+    const { user } = setup()
+    await user.click(await screen.findByRole('button', { name: /^แก้ไขบันทึก V60/ }))
+    await user.click(await screen.findByRole('checkbox', { name: /ติดดาวเป็นสูตรที่ดีที่สุด/ }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+    expect(await screen.findByText('✓ แก้ไขบันทึกแล้ว')).toBeInTheDocument()
+    expect((await db.brews.get(brew.id))!.isBest).toBe(true)
+  })
+
+  it('แท็กรสชาติ ความหวาน และโน้ต ถูกบันทึกและโหลดกลับมาตอนแก้ไข', async () => {
+    await seedBean()
+    const { user } = setup()
+    await openNewForm(user)
+    await user.click(await screen.findByText('ความหวาน แท็กรสชาติ และโน้ต'))
+    await user.click(screen.getByRole('button', { name: 'ส้ม / ซิตรัส' }))
+    await user.click(screen.getByRole('button', { name: 'น้ำผึ้ง' }))
+    await user.click(screen.getByRole('button', { name: 'น้ำผึ้ง' })) // เอาออก
+    await user.click(screen.getByRole('button', { name: 'หวานมาก' }))
+    await user.type(screen.getByLabelText('โน้ต'), 'หอมดอกไม้')
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+    expect(await screen.findByText('✓ บันทึกการชงแล้ว')).toBeInTheDocument()
+
+    const saved = (await db.brews.toArray())[0]
+    expect(saved).toMatchObject({ flavorTags: ['citrus'], sweetness: 4, notes: 'หอมดอกไม้' })
+
+    await user.click(await screen.findByRole('button', { name: /^แก้ไขบันทึก V60/ }))
+    expect(await screen.findByRole('button', { name: 'ส้ม / ซิตรัส' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'หวานมาก' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('โน้ต')).toHaveValue('หอมดอกไม้')
+  })
+
+  it('Espresso ไหลเร็ว < 20 วินาที → แนะนำบดละเอียดขึ้นแม้ยังไม่ได้ชิม', async () => {
+    const bean = await seedBean()
+    const grinder = await addGear({ type: 'grinder', name: 'Niche', grindScale: { min: 0, max: 50, step: 1 } })
+    await addBrew({
+      brewedAt: hoursAgo(24), method: 'espresso', beanId: bean.id, grinderId: grinder.id, doseG: 18, waterG: 36,
+      grindSetting: 12,
+    })
+    const { user } = setup()
+    await openNewForm(user)
+    await user.clear(await screen.findByLabelText(/^เวลาชง/))
+    await user.type(screen.getByLabelText(/^เวลาชง/), '15')
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+
+    const advice = await screen.findByRole('region', { name: 'คำแนะนำสำหรับครั้งหน้า' })
+    expect(within(advice).getByText(/ไหลเร็วเกินไป/)).toBeInTheDocument()
+    expect(within(advice).getByText('บดละเอียดขึ้น 1 ขั้น (เบอร์ 12 → 11)')).toBeInTheDocument()
+  })
+
+  it('ชงซ้ำเริ่มจากผลชิมว่าง (ผลชิมเป็นของการชงครั้งนั้น ๆ)', async () => {
+    const bean = await seedBean()
+    await addBrew({
+      brewedAt: hoursAgo(24), method: 'v60', beanId: bean.id, doseG: 15, waterG: 240, rating: 5, balance: 0, isBest: true,
+    })
+    const { user } = setup()
+    await user.click(await screen.findByRole('button', { name: /^ชงซ้ำ V60/ }))
+    expect(await screen.findByRole('button', { name: '5 ดาว' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'สมดุล' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('checkbox', { name: /ติดดาวเป็นสูตรที่ดีที่สุด/ })).not.toBeChecked()
+  })
+
+  it('แก้ไขโดยไม่เปลี่ยนคำแนะนำ → กลับรายการเลย; เปลี่ยนผลชิมจนคำแนะนำเปลี่ยน → แสดงหน้าคำแนะนำใหม่', async () => {
+    await seedWithGrinder()
+    const { user } = setup()
+    await openNewForm(user)
+    await user.click(await screen.findByRole('button', { name: 'เปรี้ยว' }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+    await user.click(await screen.findByRole('button', { name: 'เสร็จสิ้น' }))
+
+    // แก้แค่ปริมาณกาแฟ — คำแนะนำ (บดละเอียดขึ้น) ไม่เปลี่ยน
+    await user.click((await screen.findAllByRole('button', { name: /^แก้ไขบันทึก V60/ }))[0])
+    await user.click(await screen.findByRole('button', { name: 'เพิ่ม กาแฟ (g)' }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+    expect(await screen.findByText('✓ แก้ไขบันทึกแล้ว')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'คำแนะนำสำหรับครั้งหน้า' })).not.toBeInTheDocument()
+
+    // เปลี่ยนจากเปรี้ยวเป็นขม → คำแนะนำกลับทิศ
+    await user.click((await screen.findAllByRole('button', { name: /^แก้ไขบันทึก V60/ }))[0])
+    await user.click(await screen.findByRole('button', { name: 'ขม' }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+    const advice = await screen.findByRole('region', { name: 'คำแนะนำสำหรับครั้งหน้า' })
+    expect(within(advice).getByText(/สกัดมากไป/)).toBeInTheDocument()
+    expect(within(advice).getByText(/บดหยาบขึ้น 1 ขั้น/)).toBeInTheDocument()
+  })
+
+  it('เมล็ดเพิ่งคั่ว (< 4 วัน) → แสดงข้อความเตือนความสดใต้คำแนะนำ', async () => {
+    await seedBean({ roastDate: daysAgo(2) })
+    const { user } = setup()
+    await openNewForm(user)
+    await user.click(await screen.findByRole('button', { name: 'ขมมาก' }))
+    await user.click(screen.getByRole('button', { name: 'บันทึก' }))
+    expect(await screen.findByText(/เมล็ดยังสดมาก อาจมีก๊าซเยอะ ควรพักก่อน/)).toBeInTheDocument()
   })
 })

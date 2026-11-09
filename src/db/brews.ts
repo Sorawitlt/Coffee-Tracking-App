@@ -24,12 +24,26 @@ async function adjustRemaining(beanId: string, deltaG: number, at: string): Prom
   await db.beans.update(beanId, { remainingG, updatedAt: at })
 }
 
+/**
+ * กติกา: "สูตรที่ดีที่สุด" (`isBest`) มีได้ 1 รายการต่อ (เมล็ด + วิธีชง)
+ * — ตั้งรายการใหม่เป็นที่สุดแล้วรายการเดิมของเมล็ด+วิธีเดียวกันถูกปลดออกใน Transaction เดียวกัน
+ */
+async function clearOtherBest(brew: Brew, at: string): Promise<void> {
+  if (!brew.isBest) return
+  await db.brews
+    .where('beanId')
+    .equals(brew.beanId)
+    .filter((b) => b.id !== brew.id && b.isBest && b.method === brew.method)
+    .modify({ isBest: false, updatedAt: at })
+}
+
 export async function addBrew(input: BrewInput): Promise<Brew> {
   const at = nowIso()
   const brew: Brew = { flavorTags: [], isBest: false, ...stripUndefined(input), id: newId(), createdAt: at, updatedAt: at }
   await db.transaction('rw', db.brews, db.beans, async () => {
     await db.brews.add(brew)
     await adjustRemaining(brew.beanId, -brew.doseG, at)
+    await clearOtherBest(brew, at)
   })
   return brew
 }
@@ -48,6 +62,7 @@ export async function updateBrew(id: string, changes: BrewChanges): Promise<Brew
       await adjustRemaining(next.beanId, prev.doseG - next.doseG, at)
     }
     await db.brews.put(next)
+    await clearOtherBest(next, at)
     return next
   })
 }
@@ -59,6 +74,11 @@ export async function deleteBrew(id: string): Promise<void> {
     await db.brews.delete(id)
     await adjustRemaining(prev.beanId, prev.doseG, nowIso())
   })
+}
+
+/** ติดดาว/ถอดดาว "สูตรที่ดีที่สุด" ของบันทึกนี้ (รายการอื่นของเมล็ด+วิธีเดียวกันถูกปลดให้อัตโนมัติ) */
+export function setBestBrew(id: string, isBest: boolean): Promise<Brew> {
+  return updateBrew(id, { isBest })
 }
 
 export function getBrew(id: string): Promise<Brew | undefined> {

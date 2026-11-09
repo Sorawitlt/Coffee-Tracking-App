@@ -11,6 +11,7 @@ import {
 } from '../../domain/brewDraft'
 import { RATIO_PRESETS } from '../../domain/brewPlan'
 import { beverageG, daysOffRoast, formatRatio, freshness, ratio, waterForDose } from '../../domain/calc'
+import { adviceToStore } from '../../domain/dialIn'
 import { METHOD_PROFILES } from '../../domain/methods'
 import { METHODS, type Bean, type Brew, type Gear, type Method } from '../../domain/types'
 import { numberToText, parseNumber } from '../formUtil'
@@ -19,12 +20,17 @@ import { METHOD_LABEL } from '../labels'
 import {
   brewToForm, draftToForm, formToDialValues, toDateTimeLocal, validateBrewForm, type BrewFormErrors, type BrewFormValues,
 } from './brewForm'
+import { TastingFields } from './TastingFields'
+import { emptyTasting, tastingFromBrew, tastingToFields, type TastingValues } from './tasting'
 
 /**
  * ฟอร์มบันทึกการชง
  * - `new`   : ชงใหม่ — เติมค่าจากครั้งล่าสุดของเมล็ด+วิธีนี้
  * - `repeat`: "ชงซ้ำ" — คัดลอกค่าตั้งจาก `brew` ทั้งหมด เวลา = ตอนนี้
  * - `edit`  : แก้ไข/ลบบันทึกเดิม
+ *
+ * ส่วน "ชิม & ให้คะแนน" (ไม่บังคับ) อยู่ในทุกโหมดยกเว้น `start` — ชงซ้ำเริ่มจากผลชิมว่าง (ผลชิมเป็นของการชงครั้งนั้น ๆ)
+ * บันทึกแล้วคำนวณ "ครั้งหน้าลอง" เก็บไว้กับบันทึก และส่ง id ให้ผู้เรียกแสดงหน้าคำแนะนำ (`BrewResult`)
  * - `start` : "เตรียมชง" ของผู้ช่วยชง — หน้าตั้งค่าเดียวกัน แต่ไม่บันทึก กดแล้วส่งค่าไป `onStart` เพื่อเริ่มจับเวลา
  *             (ซ่อนช่องที่เป็นผลของการชง: เวลาชง, น้ำหนักเครื่องดื่ม, TDS, วันเวลา)
  */
@@ -39,7 +45,11 @@ export interface BrewFormProps {
   prefill?: BrewFormPrefill
   /** mode `start`: ผู้ใช้กด "เริ่มชง" (ค่าผ่านการตรวจสอบแล้ว) */
   onStart?: (input: BrewInput) => void
-  onDone: (message?: string) => void
+  /**
+   * จบฟอร์ม — `message` = ข้อความยืนยัน (ไม่มี = ยกเลิก)
+   * `adviceBrewId` = มีคำแนะนำใหม่ให้แสดง → ผู้เรียกเปิด `BrewResult` ของบันทึกนี้
+   */
+  onDone: (message?: string, adviceBrewId?: string) => void
   onGoToBeans: () => void
 }
 
@@ -116,6 +126,9 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [actionError, setActionError] = useState<string>()
+  const [tasting, setTasting] = useState<TastingValues>(() =>
+    mode === 'edit' && brew ? tastingFromBrew(brew) : emptyTasting(),
+  )
 
   const set = <K extends keyof BrewFormValues>(key: K, value: BrewFormValues[K]) => {
     setValues((v) => ({ ...v, [key]: value }))
@@ -166,12 +179,15 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
     changed.has(key) ? withUnit(reference?.[key], unit) : undefined
   const grinderName = (id?: string) => (id ? (gear.find((g) => g.id === id)?.name ?? 'อุปกรณ์ที่ลบแล้ว') : 'ไม่ระบุ')
 
-  async function run(action: () => Promise<unknown>, message: string) {
+  async function run(action: () => Promise<Brew | void>, message: string) {
     setActionError(undefined)
     setSaving(true)
     try {
-      await action()
-      onDone(message)
+      const saved = await action()
+      // แสดงหน้าคำแนะนำเฉพาะเมื่อมีคำแนะนำใหม่ (แก้ไขที่ไม่ได้เปลี่ยนคำแนะนำ = กลับรายการเงียบ ๆ)
+      const showAdvice =
+        saved && saved.advice && (mode !== 'edit' || JSON.stringify(saved.advice) !== JSON.stringify(brew?.advice))
+      onDone(message, showAdvice && saved ? saved.id : undefined)
     } catch {
       setActionError('เกิดข้อผิดพลาด ลองใหม่อีกครั้ง')
       setSaving(false)
@@ -185,9 +201,14 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
       setErrors(result.errors)
       return
     }
-    if (mode === 'start') onStart?.(result.value)
-    else if (mode === 'edit' && brew) void run(() => updateBrew(brew.id, result.value), 'แก้ไขบันทึกแล้ว')
-    else void run(() => addBrew(result.value), 'บันทึกการชงแล้ว')
+    if (mode === 'start') {
+      onStart?.(result.value)
+      return
+    }
+    const value: BrewInput = { ...result.value, ...tastingToFields(tasting) }
+    value.advice = adviceToStore(value, { bean, grinder: gear.find((g) => g.id === value.grinderId) })
+    if (mode === 'edit' && brew) void run(() => updateBrew(brew.id, value), 'แก้ไขบันทึกแล้ว')
+    else void run(() => addBrew(value), 'บันทึกการชงแล้ว')
   }
 
   const title =
@@ -335,6 +356,8 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
           hint={`${parseNumber(values.totalTimeSec) ? `= ${formatDuration(parseNumber(values.totalTimeSec)!)} · ` : ''}เป้าหมาย ${formatDuration(profile.timeRangeSec[0])}–${formatDuration(profile.timeRangeSec[1])}`}
           error={errors.totalTimeSec} onChange={(v) => set('totalTimeSec', v)} />
       )}
+
+      {mode !== 'start' && <TastingFields value={tasting} onChange={setTasting} />}
 
       {mode !== 'start' && (
         <details className="rounded-2xl border border-stone-200 p-3 dark:border-stone-700">
