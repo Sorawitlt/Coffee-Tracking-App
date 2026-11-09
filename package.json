@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "audit": "node scripts/audit.mjs"
   },
   "dependencies": {
     "dexie": "^4.4.7",
@@ -26,8 +27,12 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
+    "axe-core": "^4.14.0",
+    "chrome-launcher": "^1.2.3",
     "fake-indexeddb": "^6.2.8",
     "jsdom": "^31.0.0",
+    "lighthouse": "^13.6.0",
+    "playwright-core": "^1.63.0",
     "sharp": "^0.35.5",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",

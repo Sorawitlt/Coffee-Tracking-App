@@ -5,3 +5,4 @@ dev-dev-dist
 .DS_Store
 coverage
 *.tsbuildinfo
+.audit/

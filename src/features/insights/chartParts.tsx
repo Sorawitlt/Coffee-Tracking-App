@@ -68,7 +68,8 @@ export function EmptyChart({ children }: { children: ReactNode }) {
 /** ตารางข้อมูลของกราฟ — ทางเข้าถึงค่าทุกจุดโดยไม่ต้องใช้เมาส์/สี */
 export function DataTable({ caption, headers, rows }: { caption: string; headers: string[]; rows: ReactNode[][] }) {
   return (
-    <div className="max-h-80 overflow-auto rounded-xl border border-stone-200 dark:border-stone-700">
+    // เลื่อนดูด้วยคีย์บอร์ดได้: กล่องที่เลื่อนได้ต้องรับโฟกัส (ตารางไม่มีปุ่ม/ลิงก์ให้โฟกัสแทน)
+    <div tabIndex={0} role="region" aria-label={caption} className="max-h-80 overflow-auto rounded-xl border border-stone-200 dark:border-stone-700">
       <table className="w-full text-left text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead className="sticky top-0 bg-stone-100 dark:bg-stone-800">

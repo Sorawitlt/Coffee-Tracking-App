@@ -5,7 +5,7 @@
 A local-first PWA to log, guide, and improve your coffee brewing. Works offline on any device; exports to Excel / Google Sheets.
 
 - 📋 แผนการพัฒนาและสเปก: [docs/PLAN.md](docs/PLAN.md)
-- สถานะ: ขั้นที่ 0–9 เสร็จแล้ว (แอปสลับไทย/English ได้ทั้งแอป) — ขั้นต่อไป: ขั้นที่ 10 Polish (Dark mode, Accessibility, ออฟไลน์, Lighthouse)
+- สถานะ: ขั้นที่ 0–10 เสร็จแล้ว (ไทย/English, โหมดสว่าง/มืด, ผ่าน WCAG 2.2 AA, ใช้ออฟไลน์ได้) — ขั้นต่อไป: ขั้นที่ 11 Deploy GitHub Pages + คู่มือผู้ใช้
 
 ## เริ่มใช้งาน (Development)
 
@@ -14,4 +14,5 @@ npm install
 npm run dev      # เปิดแอปที่ http://localhost:5173
 npm test         # รัน unit test (Vitest)
 npm run build    # build + สร้าง PWA (service worker, manifest)
+npm run audit    # (หลัง build) Lighthouse + axe WCAG 2.2 AA สว่าง/มืด + ทดสอบออฟไลน์ — ต้องมี Chrome ในเครื่อง
 ```

@@ -38,7 +38,7 @@ export function TastingFields({ value, onChange }: Props) {
               className={`min-h-12 flex-1 rounded-xl border text-2xl leading-none ${
                 value.rating !== undefined && n <= value.rating
                   ? 'border-amber-600 bg-amber-100 text-amber-700 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-300'
-                  : 'border-stone-300 bg-white text-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:bg-stone-800 dark:hover:bg-stone-700'
+                  : 'border-stone-300 bg-white text-stone-500 hover:bg-stone-100 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700'
               }`}
             >
               <span aria-hidden>{value.rating !== undefined && n <= value.rating ? '★' : '☆'}</span>

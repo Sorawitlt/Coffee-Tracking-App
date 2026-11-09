@@ -3,15 +3,43 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  color-scheme: light dark;
+  /* ธีมกำหนดโดย class `.dark` บน <html> (ขั้น 10: src/theme/) — ไม่ใช้ `light dark` ตรง ๆ
+     เพราะจะทำให้ช่องกรอก/สกรอลบาร์เป็นสีมืดตามเครื่อง ขณะที่หน้าแอปเลือกโหมดสว่างอยู่ */
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
+}
+html {
+  /* แถบเมนูล่างติดขอบจอ (sticky ~56px) — เวลาเลื่อนโฟกัสด้วย Tab ให้เลื่อนหน้าเผื่อพื้นที่นี้
+     ช่อง/ปุ่มที่ได้โฟกัสจะไม่ถูกเมนูบัง (WCAG 2.2 · 2.4.11 Focus Not Obscured) */
+  scroll-padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
 }
 body {
   @apply bg-stone-50 text-stone-900 dark:bg-stone-900 dark:text-stone-100;
   font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans Thai', sans-serif;
 }
 
+/* วงโฟกัสที่เห็นชัดทุกพื้นหลัง (คีย์บอร์ด/สวิตช์ควบคุม) — แสดงเฉพาะตอนใช้คีย์บอร์ด ไม่ขึ้นตอนแตะนิ้ว */
+:focus-visible {
+  outline: 3px solid var(--color-amber-600, #d97706);
+  outline-offset: 2px;
+}
+
+/* ผู้ใช้ที่ตั้ง "ลดการเคลื่อนไหว" ในเครื่อง: ตัดแอนิเมชัน/ทรานซิชันทั้งหมด */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* สีของกราฟ (ขั้น 7) — ผ่าน validate_palette: น้ำเงินซีรีส์เดียวบนพื้นสว่าง/มืด, เทา = ข้อมูลรอง
-   โหมดมืดเลือกตาม `.dark` เหมือนส่วนอื่นของแอป (ขั้น 10 จะผูกกับการตั้งค่าธีม) */
+   โหมดมืดเลือกตาม `.dark` บน <html> ซึ่งตั้งจากการตั้งค่าธีม (ขั้น 10: src/theme/) */
 .viz-root {
   --viz-surface: #fcfcfb;
   --viz-series: #2a78d6;

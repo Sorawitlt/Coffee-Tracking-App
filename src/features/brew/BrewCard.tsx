@@ -30,12 +30,12 @@ export function BrewCard({ brew, bean, onOpen, onRepeat }: Props) {
       <button
         type="button"
         onClick={onOpen}
-        aria-label={t('brew.card.edit', { method: METHOD_LABEL[brew.method], bean: beanName })}
         className="block w-full rounded-t-2xl p-4 text-left hover:bg-stone-50 dark:hover:bg-stone-700/50"
       >
         <div className="flex items-baseline justify-between gap-3">
+          {/* ชื่อปุ่ม = ข้อความบนการ์ดทั้งหมด (WCAG 2.5.3 Label in Name) — นำหน้าด้วยคำกริยาที่ผู้อ่านหน้าจอได้ยินเท่านั้น */}
           <h3 className="min-w-0 truncate text-lg font-semibold">
-            {METHOD_LABEL[brew.method]} · {beanName}
+            <span className="sr-only">{t('brew.card.edit')}</span> {METHOD_LABEL[brew.method]} · {beanName}
           </h3>
           <time dateTime={brew.brewedAt} className="shrink-0 text-sm text-stone-500 dark:text-stone-400">
             {formatDateTime(brew.brewedAt, new Date(), locale)}

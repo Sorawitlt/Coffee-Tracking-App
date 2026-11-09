@@ -8,6 +8,18 @@
     <meta name="description" content="Brew Log — บันทึกและช่วยชงกาแฟ" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Brew Log</title>
+    <!-- ใส่ธีมก่อนวาดเฟรมแรก (กันจอกะพริบสีขาวในโหมดมืด) — สำเนาย่อของ src/theme/theme.ts: แก้ที่หนึ่งต้องแก้อีกที่ -->
+    <script>
+      (function () {
+        var t = 'system'
+        try { t = localStorage.getItem('brewlog.theme') || 'system' } catch (e) {}
+        var dark = t === 'dark' || (t !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)
+        var r = document.documentElement
+        if (dark) r.classList.add('dark')
+        r.style.colorScheme = dark ? 'dark' : 'light'
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#1c1917' : '#6f4e37')
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
