@@ -1,7 +1,7 @@
 # Brew Log — แผนออกแบบแอปบันทึกและช่วยชงกาแฟ
 
 > เอกสารแผนหลัก (Master Plan) ใช้อ้างอิงทุกขั้นตอนการพัฒนา
-> สถานะ: v1.0 · อัปเดต 2026-11-09
+> สถานะ: v1.1 · อัปเดต 2026-11-09 (ขั้น 2: ปรับรายละเอียด Data model)
 
 ---
 
@@ -164,8 +164,8 @@ Gear {
 
 Recipe {
   id, name, method, category, isDefault,
-  doseG, waterG, tempC, grindHint, totalTimeSec,
-  steps: [{ atSec, label, targetWaterG? }],
+  doseG, waterG, tempC?, grindHint, totalTimeSec,   // tempC ไม่ระบุ = ไม่เกี่ยวข้อง (Cold brew, Moka)
+  steps: [{ atSec, action, targetWaterG?, label? }], // action = รหัสขั้นตอน (bloom/pour/press…) แปลผ่าน i18n
   createdAt, updatedAt
 }
 
@@ -173,7 +173,10 @@ Brew {
   id, brewedAt, method, beanId, recipeId?, grinderId?, brewerId?,
   doseG, waterG, yieldG?, grindSetting?, tempC?,
   bloomSec?, totalTimeSec?, tds?, // คำนวณ: ratio, ey, daysOffRoast, costPerCup
-  rating?: 1..5, acidity?: -2..2, body?: -2..2, sweetness?: 0..4,
+  rating?: 1..5,
+  balance?: -2..2,      // สไลเดอร์ เปรี้ยว(−) ↔ ขม(+)
+  body?: -2..2,         // บาง/จืด(−) ↔ หนัก/เข้ม(+)
+  sweetness?: 0..4, sourAndBitter?: boolean,  // เปรี้ยวและขมพร้อมกัน → สกัดไม่สม่ำเสมอ
   flavorTags: string[], notes?, isBest, advice?,
   createdAt, updatedAt
 }
@@ -182,6 +185,14 @@ Settings { language, units, theme, lastBackupAt, defaultMethod }
 ```
 
 > ค่าที่คำนวณได้ (ratio, EY, days off roast, cost) **ไม่เก็บซ้ำ** — คำนวณจาก util กลาง เพื่อให้ตัวเลขถูกต้องเสมอ
+
+**กติกาที่ล็อกไว้ในขั้น 2** (โค้ด: `src/domain/`, `src/db/`)
+- เวลาเก็บเป็น ISO 8601 UTC, `roastDate` เก็บเป็น `YYYY-MM-DD` ท้องถิ่น · หน่วยเก็บเป็น g / °C / วินาทีเสมอ (แปลงหน่วยที่ UI)
+- Espresso: `waterG` = น้ำหนักช็อตเป้าหมาย (ratio = ช็อต ÷ กาแฟ)
+- สูตรตั้งต้นใช้ ID คงที่ `default-<method>` และ seed ใหม่ทุกครั้งที่เปิดแอป (แก้ไม่ได้ ต้องทำสำเนา)
+- `remainingG` ปรับใน Transaction เดียวกับการเพิ่ม/แก้/ลบบันทึกการชง (`src/db/brews.ts`) — ย้อนกลับได้ตรงกรัม
+- `balance` แทน `acidity` เดิม เพราะ "Acidity" ในกาแฟ Specialty เป็นรสที่ดี ไม่ใช่อาการผิดปกติ — ชื่อใหม่ตรงกับสไลเดอร์ เปรี้ยว↔ขม
+- Dial-in Advisor คืนค่าเป็น **รหัส** (`kind`, `adjustment`, `notes`) ไม่ใช่ข้อความ → แปลภาษาที่ UI
 
 ---
 
@@ -215,7 +226,7 @@ src/
 |-----|-----|----------------|-------|--------|
 | 0 | แผนแม่บท (เอกสารนี้) | `docs/PLAN.md` | Opus 5.5 | medium ✅ เสร็จแล้ว |
 | 1 | Scaffold: Vite + React + TS + Tailwind + PWA + Dexie + Vitest + CI (GitHub Actions) | `npm run dev` / `test` / `build` ผ่าน, ติดตั้งเป็นแอปได้ | Sonnet 5.5 | low ✅ เสร็จแล้ว |
-| 2 | Domain + DB: schema, สูตรคำนวณ, default recipes, dial-in rules + unit tests | Test ครอบคลุมสูตรคำนวณ & กฎทั้งหมด | **Opus 5.5** | medium |
+| 2 | Domain + DB: schema, สูตรคำนวณ, default recipes, dial-in rules + unit tests | Test ครอบคลุมสูตรคำนวณ & กฎทั้งหมด | **Opus 5.5** | medium ✅ เสร็จแล้ว |
 | 3 | คลังเมล็ด & อุปกรณ์ (CRUD + วันหลังคั่ว + คงเหลือ) | เพิ่ม/แก้/ลบ/Archive ได้ | Sonnet 5.5 | medium |
 | 4 | บันทึกการชง (Quick log, เติมค่าอัตโนมัติ, ชงซ้ำ, ไฮไลต์ค่าที่เปลี่ยน) | บันทึกได้ใน ≤ 30 วินาที | Sonnet 5.5 | medium |
 | 5 | ผู้ช่วยชง (Timer + ขั้นตอน + เสียง/สั่น + Wake Lock) | ชง V60/Espresso ตามแอปได้จริง | Sonnet 5.5 | high |
