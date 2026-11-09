@@ -1,8 +1,12 @@
 import type { Brew } from '../../domain/types'
+import { tTh, type MessageKey } from '../../i18n'
 import {
   brewToForm, draftToForm, formToDialValues, fromDateTimeLocal, toDateTimeLocal, validateBrewForm,
   type BrewFormValues,
 } from './brewForm'
+
+/** ข้อผิดพลาดเก็บเป็นคีย์ i18n — แปลเป็นภาษาไทยก่อนเทียบข้อความ */
+const errorText = (key: MessageKey | undefined) => (key === undefined ? undefined : tTh(key))
 
 const NOW = new Date(2026, 10, 9, 10, 0)
 
@@ -76,7 +80,7 @@ describe('validateBrewForm', () => {
     const r = validateBrewForm(form({ beanId: '', doseG: '', waterG: '' }), { now: NOW })
     expect(r.ok).toBe(false)
     if (!r.ok) {
-      expect(r.errors).toMatchObject({
+      expect({ beanId: errorText(r.errors.beanId), doseG: errorText(r.errors.doseG), waterG: errorText(r.errors.waterG) }).toEqual({
         beanId: 'กรุณาเลือกเมล็ด',
         doseG: 'กรุณากรอกปริมาณกาแฟ (กรัม)',
         waterG: 'กรุณากรอกปริมาณน้ำ (กรัม)',
@@ -107,14 +111,14 @@ describe('validateBrewForm', () => {
   ] as const)('ปฏิเสธ %s = "%s"', (key, text, message) => {
     const r = validateBrewForm(form({ [key]: text }), { now: NOW })
     expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.errors[key]).toBe(message)
+    if (!r.ok) expect(errorText(r.errors[key])).toBe(message)
   })
 
   it('เวลาในอนาคตไม่ได้ (เผื่อ 5 นาที) และวันที่ผิดรูปแบบไม่ได้', () => {
     const future = validateBrewForm(form({ brewedAt: '2026-11-09T10:30' }), { now: NOW })
-    expect(!future.ok && future.errors.brewedAt).toBe('เวลาที่ชงต้องไม่เกินปัจจุบัน')
+    expect(!future.ok && errorText(future.errors.brewedAt)).toBe('เวลาที่ชงต้องไม่เกินปัจจุบัน')
     expect(validateBrewForm(form({ brewedAt: '2026-11-09T10:04' }), { now: NOW }).ok).toBe(true)
     const bad = validateBrewForm(form({ brewedAt: '' }), { now: NOW })
-    expect(!bad.ok && bad.errors.brewedAt).toBe('วันและเวลาไม่ถูกต้อง')
+    expect(!bad.ok && errorText(bad.errors.brewedAt)).toBe('วันและเวลาไม่ถูกต้อง')
   })
 })

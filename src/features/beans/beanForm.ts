@@ -2,6 +2,7 @@ import { toLocalDate } from '../../domain/calc'
 import { remainingDisplayG } from '../../domain/inventory'
 import type { Bean, BeanProcess, Category, RoastLevel } from '../../domain/types'
 import type { BeanInput } from '../../db/beans'
+import type { MessageKey } from '../../i18n'
 import { numberToText, optionalText, parseNumber } from '../formUtil'
 
 /**
@@ -25,7 +26,8 @@ export interface BeanFormValues {
   notes: string
 }
 
-export type BeanFormErrors = Partial<Record<keyof BeanFormValues, string>>
+/** ข้อผิดพลาดต่อช่อง เก็บเป็นคีย์ข้อความ — แปลตอนแสดง (สลับภาษากลางทางได้) */
+export type BeanFormErrors = Partial<Record<keyof BeanFormValues, MessageKey>>
 
 export type BeanFormResult = { ok: true; value: BeanInput } | { ok: false; errors: BeanFormErrors }
 
@@ -88,28 +90,28 @@ export function validateBeanForm(v: BeanFormValues, { mode, today = toLocalDate(
   const errors: BeanFormErrors = {}
 
   const name = v.name.trim()
-  if (!name) errors.name = 'กรุณากรอกชื่อเมล็ด'
+  if (!name) errors.name = 'bean.val.name'
 
-  if (!v.roastDate) errors.roastDate = 'กรุณาเลือกวันที่คั่ว'
-  else if (!isRealLocalDate(v.roastDate)) errors.roastDate = 'วันที่ไม่ถูกต้อง'
-  else if (v.roastDate > today) errors.roastDate = 'วันที่คั่วต้องไม่เกินวันนี้'
+  if (!v.roastDate) errors.roastDate = 'bean.val.roastDateRequired'
+  else if (!isRealLocalDate(v.roastDate)) errors.roastDate = 'bean.val.roastDateInvalid'
+  else if (v.roastDate > today) errors.roastDate = 'bean.val.roastDateFuture'
 
   const weightG = parseNumber(v.weightG)
-  if (weightG === undefined) errors.weightG = 'กรุณากรอกน้ำหนักถุง (กรัม)'
-  else if (!(weightG > 0)) errors.weightG = 'น้ำหนักต้องมากกว่า 0'
+  if (weightG === undefined) errors.weightG = 'bean.val.weightRequired'
+  else if (!(weightG > 0)) errors.weightG = 'bean.val.weightPositive'
 
   let remainingG = parseNumber(v.remainingG)
   if (remainingG === undefined) {
-    if (mode === 'edit') errors.remainingG = 'กรุณากรอกน้ำหนักคงเหลือ'
+    if (mode === 'edit') errors.remainingG = 'bean.val.remainingRequired'
     else remainingG = weightG // เพิ่มใหม่: ถุงเต็ม
   } else if (!(remainingG >= 0)) {
-    errors.remainingG = 'คงเหลือต้องเป็นตัวเลข 0 ขึ้นไป'
+    errors.remainingG = 'bean.val.remainingNumber'
   } else if (weightG !== undefined && weightG > 0 && remainingG > weightG) {
-    errors.remainingG = 'คงเหลือต้องไม่เกินน้ำหนักถุง'
+    errors.remainingG = 'bean.val.remainingMax'
   }
 
   const priceTotal = parseNumber(v.priceTotal)
-  if (priceTotal !== undefined && !(priceTotal >= 0)) errors.priceTotal = 'ราคาต้องเป็นตัวเลข 0 ขึ้นไป'
+  if (priceTotal !== undefined && !(priceTotal >= 0)) errors.priceTotal = 'bean.val.price'
 
   if (Object.keys(errors).length > 0) return { ok: false, errors }
 

@@ -1,6 +1,7 @@
 import { advise } from '../../domain/dialIn'
 import type { Advice, AdviceKind } from '../../domain/types'
-import { ADVICE_DIAGNOSIS, adjustmentText, describeAdvice, NO_ADJUSTMENT_TEXT, NOTE_TEXT } from './adviceText'
+import { createT, tTh } from '../../i18n'
+import { ADVICE_DIAGNOSIS_KEY, adjustmentText, describeAdvice, NO_ADJUSTMENT_KEY, NOTE_KEY } from './adviceText'
 
 const v60 = { method: 'v60' as const, doseG: 15, waterG: 240, tempC: 94, totalTimeSec: 180, grindSetting: 20 }
 
@@ -38,7 +39,7 @@ describe('describeAdvice', () => {
       'espressoFast', 'espressoSlow', 'uneven', 'underExtracted', 'overExtracted', 'tooWeak', 'tooStrong', 'best',
       'balanced', 'needTasting',
     ]
-    for (const k of kinds) expect(ADVICE_DIAGNOSIS[k]).toBeTruthy()
+    for (const k of kinds) expect(tTh(ADVICE_DIAGNOSIS_KEY[k])).toBeTruthy()
   })
 
   it('เปรี้ยว → “บดละเอียดขึ้น” เป็นการปรับหลัก + ทางเลือกสำรอง', () => {
@@ -58,12 +59,31 @@ describe('describeAdvice', () => {
 
   it('ต้องปรับแต่ไม่มีตัวแปรให้ปรับ → แจ้งเหตุผลแทนที่จะว่างเปล่า', () => {
     const advice: Advice = { kind: 'underExtracted', alternatives: [], notes: [] }
-    expect(describeAdvice(advice, 'v60').fallback).toBe(NO_ADJUSTMENT_TEXT)
+    expect(describeAdvice(advice, 'v60').fallback).toBe(tTh(NO_ADJUSTMENT_KEY))
   })
 
   it('ข้อความเมล็ดสด/เก่าตามวันหลังคั่ว (PLAN ข้อ 5.3)', () => {
     const view = describeAdvice(advise({ ...v60, balance: 1, daysOffRoast: 2 }), 'v60')
-    expect(view.notes).toEqual([NOTE_TEXT.beanTooFresh])
-    expect(describeAdvice(advise({ ...v60, balance: 1, daysOffRoast: 60 }), 'v60').notes).toEqual([NOTE_TEXT.beanStale])
+    expect(view.notes).toEqual([tTh(NOTE_KEY.beanTooFresh)])
+    expect(describeAdvice(advise({ ...v60, balance: 1, daysOffRoast: 60 }), 'v60').notes).toEqual([tTh(NOTE_KEY.beanStale)])
+  })
+})
+
+describe('ภาษาอังกฤษ', () => {
+  const en = createT('en')
+
+  it('การปรับ 1 อย่าง — พหูพจน์ถูกต้อง (1 step / 2 steps)', () => {
+    expect(adjustmentText({ variable: 'grind', direction: 'finer', steps: 1, from: 20, to: 19 }, 'v60', en))
+      .toBe('Grind 1 step finer (setting 20 → 19)')
+    expect(adjustmentText({ variable: 'grind', direction: 'coarser', steps: 2 }, 'v60', en)).toBe('Grind 2 steps coarser')
+    expect(adjustmentText({ variable: 'time', deltaSec: -1 }, 'v60', en)).toBe('Brew 1 second shorter')
+    expect(adjustmentText({ variable: 'temp', deltaC: 2, from: 94, to: 96 }, 'v60', en)).toBe('Use water 2 °C hotter (94 → 96 °C)')
+  })
+
+  it('คำแนะนำทั้งชุดไม่มีภาษาไทยปน', () => {
+    const view = describeAdvice(advise({ ...v60, balance: -2, daysOffRoast: 2 }), 'v60', en)
+    const all = [view.diagnosis, view.action, ...view.alternatives, ...view.notes].join(' ')
+    expect(all).not.toMatch(/[ก-๙]/)
+    expect(view.diagnosis).toContain('under-extracted')
   })
 })

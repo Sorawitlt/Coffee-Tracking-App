@@ -1,74 +1,76 @@
 import { formatRatio } from '../../domain/calc'
 import { METHOD_PROFILES } from '../../domain/methods'
 import type { Adjustment, Advice, AdviceKind, AdviceNote, Method } from '../../domain/types'
+import { tTh, type MessageKey, type TFunction } from '../../i18n'
 import { formatDuration, formatGrams } from '../format'
 
 /**
- * แปลงรหัสคำแนะนำจาก Dial-in Advisor เป็นข้อความภาษาไทย (PLAN ข้อ 5.3)
- * รวมข้อความไว้ที่เดียวเพื่อย้ายเข้า i18n ในขั้น 9 ได้ง่าย
+ * แปลงรหัสคำแนะนำจาก Dial-in Advisor เป็นข้อความตามภาษาที่เลือก (PLAN ข้อ 5.3)
+ * ข้อความอยู่ใน i18n (`advice.*`) — ที่นี่เก็บแค่ "รหัสคำแนะนำ → คีย์ข้อความ"
  */
 
-export const ADVICE_DIAGNOSIS: Record<AdviceKind, string> = {
-  espressoFast: 'Espresso ไหลเร็วเกินไป (น้อยกว่า 20 วินาที) — บดหยาบไป',
-  espressoSlow: 'Espresso ไหลช้าเกินไป (มากกว่า 35 วินาที) — บดละเอียดไป',
-  uneven: 'ทั้งเปรี้ยวและขมพร้อมกัน — สกัดไม่สม่ำเสมอ (Channeling)',
-  underExtracted: 'เปรี้ยวแหลม บาง จบสั้น — สกัดน้อยไป (Under-extracted)',
-  overExtracted: 'ขม ฝาด แห้งปาก — สกัดมากไป (Over-extracted)',
-  tooWeak: 'รสสมดุล แต่จืด/ใส — เข้มน้อยไป',
-  tooStrong: 'รสสมดุล แต่หนัก/เข้มเกิน — เข้มมากไป',
-  best: 'อร่อยแล้ว! คะแนนสูงและไม่มีอาการที่ต้องแก้',
+export const ADVICE_DIAGNOSIS_KEY: Record<AdviceKind, MessageKey> = {
+  espressoFast: 'advice.diagnosis.espressoFast',
+  espressoSlow: 'advice.diagnosis.espressoSlow',
+  uneven: 'advice.diagnosis.uneven',
+  underExtracted: 'advice.diagnosis.underExtracted',
+  overExtracted: 'advice.diagnosis.overExtracted',
+  tooWeak: 'advice.diagnosis.tooWeak',
+  tooStrong: 'advice.diagnosis.tooStrong',
+  best: 'advice.diagnosis.best',
   // ใช้ทั้งกรณีเลือก “สมดุล” แล้ว และกรณีให้แค่ดาว (ไม่ได้บอกรส) จึงไม่ยืนยันว่ารสสมดุล
-  balanced: 'ยังไม่พบอาการที่ต้องปรับ',
-  needTasting: 'ยังไม่มีผลชิมพอจะวินิจฉัย',
+  balanced: 'advice.diagnosis.balanced',
+  needTasting: 'advice.diagnosis.needTasting',
 }
 
 /** ข้อความเสริมเมื่อไม่มีตัวแปรให้แนะนำปรับ (เช่น ไม่ได้ระบุเครื่องบด หรือเบอร์บดถึงขีดสุดแล้ว) */
-export const NO_ADJUSTMENT_TEXT =
-  'ตอนนี้ยังไม่มีข้อเสนอที่ทำได้ (เช่น ไม่ได้ระบุเครื่องบด/เบอร์บด หรือเบอร์บดถึงขีดสุดของสเกลแล้ว) — ลองปรับด้วยตัวเองทีละอย่าง'
+export const NO_ADJUSTMENT_KEY: MessageKey = 'advice.noAdjustment'
 
 /** ข้อความปิดท้ายของกรณีที่ไม่ต้องปรับอะไร */
-export const KEEP_RECIPE_TEXT: Partial<Record<AdviceKind, string>> = {
-  best: 'คงสูตรนี้ไว้ — ติดดาวเป็น “สูตรที่ดีที่สุด” ของเมล็ดนี้ได้เลย',
-  balanced: 'คงสูตรไว้ — บอกรสชาติ (เปรี้ยว/ขม/บอดี้) เพิ่มเพื่อให้แนะนำตรงขึ้น หรือลองปรับทีละอย่างถ้าอยากให้คะแนนสูงขึ้น',
+export const KEEP_RECIPE_KEY: Partial<Record<AdviceKind, MessageKey>> = {
+  best: 'advice.keep.best',
+  balanced: 'advice.keep.balanced',
 }
 
-export const NOTE_TEXT: Record<AdviceNote, string> = {
-  beanTooFresh: 'เมล็ดยังสดมาก อาจมีก๊าซเยอะ ควรพักก่อน',
-  beanStale: 'กลิ่นอาจลดลง ลองน้ำร้อนขึ้นเล็กน้อย',
+export const NOTE_KEY: Record<AdviceNote, MessageKey> = {
+  beanTooFresh: 'advice.note.beanTooFresh',
+  beanStale: 'advice.note.beanStale',
 }
 
 const arrow = (from: number | undefined, to: number | undefined, unit = '') =>
   from !== undefined && to !== undefined ? ` (${formatGrams(from)} → ${formatGrams(to)}${unit})` : ''
 
 /** ข้อความการปรับ 1 อย่าง เช่น "บดละเอียดขึ้น 1 ขั้น (เบอร์ 20 → 19)" */
-export function adjustmentText(adjustment: Adjustment, method: Method): string {
+export function adjustmentText(adjustment: Adjustment, method: Method, t: TFunction = tTh): string {
   switch (adjustment.variable) {
     case 'grind': {
-      const verb = adjustment.direction === 'finer' ? 'บดละเอียดขึ้น' : 'บดหยาบขึ้น'
-      const detail = adjustment.from !== undefined && adjustment.to !== undefined
-        ? ` (เบอร์ ${formatGrams(adjustment.from)} → ${formatGrams(adjustment.to)})`
-        : ''
-      return `${verb} ${adjustment.steps} ขั้น${detail}`
+      const detail =
+        adjustment.from !== undefined && adjustment.to !== undefined
+          ? t('advice.adj.grindDetail', { from: formatGrams(adjustment.from), to: formatGrams(adjustment.to) })
+          : ''
+      return t(adjustment.direction === 'finer' ? 'advice.adj.grindFiner' : 'advice.adj.grindCoarser', { n: adjustment.steps, detail })
     }
-    case 'ratio': {
-      const verb = adjustment.to < adjustment.from ? 'เพิ่มความเข้ม' : 'ลดความเข้ม'
-      return `${verb}: ${formatRatio(adjustment.from)} → ${formatRatio(adjustment.to)} (กาแฟ ${formatGrams(adjustment.doseG)} g : น้ำ ${formatGrams(adjustment.waterG)} g)`
-    }
-    case 'temp': {
-      const verb = adjustment.deltaC > 0 ? 'น้ำร้อนขึ้น' : 'น้ำเย็นลง'
-      return `${verb} ${Math.abs(adjustment.deltaC)} °C${arrow(adjustment.from, adjustment.to, ' °C')}`
-    }
+    case 'ratio':
+      return t(adjustment.to < adjustment.from ? 'advice.adj.ratioStronger' : 'advice.adj.ratioWeaker', {
+        from: formatRatio(adjustment.from),
+        to: formatRatio(adjustment.to),
+        dose: formatGrams(adjustment.doseG),
+        water: formatGrams(adjustment.waterG),
+      })
+    case 'temp':
+      return t(adjustment.deltaC > 0 ? 'advice.adj.tempHotter' : 'advice.adj.tempColder', {
+        c: Math.abs(adjustment.deltaC),
+        detail: arrow(adjustment.from, adjustment.to, ' °C'),
+      })
     case 'time': {
-      const verb = adjustment.deltaSec > 0 ? 'ชงนานขึ้น' : 'ชงสั้นลง'
-      const detail = adjustment.from !== undefined && adjustment.to !== undefined
-        ? ` (${formatDuration(adjustment.from)} → ${formatDuration(adjustment.to)})`
-        : ''
-      return `${verb} ${Math.abs(adjustment.deltaSec)} วินาที${detail}`
+      const detail =
+        adjustment.from !== undefined && adjustment.to !== undefined
+          ? ` (${formatDuration(adjustment.from)} → ${formatDuration(adjustment.to)})`
+          : ''
+      return t(adjustment.deltaSec > 0 ? 'advice.adj.timeLonger' : 'advice.adj.timeShorter', { n: Math.abs(adjustment.deltaSec), detail })
     }
     case 'technique':
-      return METHOD_PROFILES[method].style === 'espresso'
-        ? 'ปรับเทคนิค: กระจายผงและ Tamp ให้เรียบเสมอกัน'
-        : 'ปรับเทคนิค: เทน้ำให้นิ่งสม่ำเสมอ และ Swirl เบา ๆ ให้ผงเรียบ'
+      return t(METHOD_PROFILES[method].style === 'espresso' ? 'advice.adj.techniqueEspresso' : 'advice.adj.techniqueFilter')
   }
 }
 
@@ -86,15 +88,15 @@ export interface AdviceView {
   positive: boolean
 }
 
-export function describeAdvice(advice: Advice, method: Method): AdviceView {
-  const action = advice.adjustment ? adjustmentText(advice.adjustment, method) : undefined
-  const keep = KEEP_RECIPE_TEXT[advice.kind]
+export function describeAdvice(advice: Advice, method: Method, t: TFunction = tTh): AdviceView {
+  const action = advice.adjustment ? adjustmentText(advice.adjustment, method, t) : undefined
+  const keepKey = KEEP_RECIPE_KEY[advice.kind]
   return {
-    diagnosis: ADVICE_DIAGNOSIS[advice.kind],
+    diagnosis: t(ADVICE_DIAGNOSIS_KEY[advice.kind]),
     action,
-    fallback: action ? undefined : (keep ?? (advice.kind === 'needTasting' ? undefined : NO_ADJUSTMENT_TEXT)),
-    alternatives: advice.alternatives.map((a) => adjustmentText(a, method)),
-    notes: advice.notes.map((n) => NOTE_TEXT[n]),
+    fallback: action ? undefined : keepKey ? t(keepKey) : advice.kind === 'needTasting' ? undefined : t(NO_ADJUSTMENT_KEY),
+    alternatives: advice.alternatives.map((a) => adjustmentText(a, method, t)),
+    notes: advice.notes.map((n) => t(NOTE_KEY[n])),
     positive: advice.kind === 'best' || advice.kind === 'balanced',
   }
 }

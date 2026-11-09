@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { listBeans, useLive } from '../../db'
 import { Button } from '../../components/Button'
+import { useT } from '../../i18n/I18nProvider'
 import { BeanCard } from './BeanCard'
 
 interface Props {
@@ -9,22 +10,23 @@ interface Props {
 }
 
 export function BeanList({ onAdd, onOpen }: Props) {
+  const t = useT()
   const [showArchived, setShowArchived] = useState(false)
   const beans = useLive(() => listBeans({ includeArchived: showArchived }), [showArchived])
   const archivedCount = useLive(async () => (await listBeans({ includeArchived: true })).filter((b) => b.archived).length, [])
 
   return (
-    <section aria-label="คลังเมล็ด" className="space-y-3">
+    <section aria-label={t('bean.list.title')} className="space-y-3">
       <Button variant="primary" className="w-full" onClick={onAdd}>
-        + เพิ่มเมล็ด
+        {t('bean.list.add')}
       </Button>
 
       {beans === undefined ? null : beans.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-300 p-8 text-center dark:border-stone-600">
           <p className="text-4xl" aria-hidden>🫘</p>
-          <p className="mt-2 font-medium">{showArchived ? 'ไม่มีเมล็ดในคลัง' : 'ยังไม่มีเมล็ดในคลัง'}</p>
+          <p className="mt-2 font-medium">{t(showArchived ? 'bean.list.emptyAria' : 'bean.list.empty')}</p>
           <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-            เพิ่มถุงแรกของคุณ แอปจะนับวันหลังคั่วและหักน้ำหนักคงเหลือให้อัตโนมัติ
+            {t('bean.list.emptyHint')}
           </p>
         </div>
       ) : (
@@ -45,7 +47,7 @@ export function BeanList({ onAdd, onOpen }: Props) {
             onChange={(e) => setShowArchived(e.target.checked)}
             className="size-5 accent-amber-800"
           />
-          แสดงที่ Archive ({archivedCount})
+          {t('bean.list.showArchived', { n: archivedCount ?? 0 })}
         </label>
       )}
     </section>

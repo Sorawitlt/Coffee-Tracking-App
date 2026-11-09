@@ -5,8 +5,9 @@ import {
 import { backupCounts } from '../../domain/backup'
 import { beansToCsv, brewsToCsv } from '../../domain/export'
 import { Button } from '../../components/Button'
+import { useI18n } from '../../i18n/I18nProvider'
 import { formatDateTime } from '../format'
-import { countsText, daysAgoText } from './backupText'
+import { countsText, daysAgoText, type Message } from './backupText'
 import { downloadTextFile, exportFileName, MIME_CSV, MIME_JSON, type ExportKind } from './files'
 import { RestoreSection } from './RestoreSection'
 
@@ -19,10 +20,11 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-type Notice = { kind: 'ok' | 'error'; text: string }
+type Notice = { kind: 'ok' | 'error'; message: Message }
 
 /** หน้า "ข้อมูลของฉัน": สำรอง/นำกลับ (JSON) · ส่งออก CSV · สถานะที่เก็บข้อมูลในเครื่อง */
 export default function DataPage({ onClose }: { onClose: () => void }) {
+  const { t, locale } = useI18n()
   const settings = useLive(getSettings)
   const [notice, setNotice] = useState<Notice>()
   const [busy, setBusy] = useState(false)
@@ -32,14 +34,14 @@ export default function DataPage({ onClose }: { onClose: () => void }) {
     void isStoragePersistent().then(setPersistent)
   }, [])
 
-  async function run(job: () => Promise<string>) {
+  async function run(job: () => Promise<Message>) {
     setBusy(true)
     setNotice(undefined)
     try {
-      setNotice({ kind: 'ok', text: await job() })
+      setNotice({ kind: 'ok', message: await job() })
     } catch (err) {
       console.error('export failed', err)
-      setNotice({ kind: 'error', text: 'สร้างไฟล์ไม่สำเร็จ กรุณาลองใหม่' })
+      setNotice({ kind: 'error', message: (tt) => tt('data.exportFailed') })
     } finally {
       setBusy(false)
     }
@@ -51,7 +53,8 @@ export default function DataPage({ onClose }: { onClose: () => void }) {
       const name = exportFileName('backup')
       downloadTextFile(name, JSON.stringify(file), MIME_JSON)
       await markBackedUp(file.exportedAt)
-      return `สร้างไฟล์ ${name} แล้ว (${countsText(backupCounts(file.data))}) — เก็บไว้ในที่ปลอดภัย เช่น Google Drive / OneDrive`
+      const counts = backupCounts(file.data)
+      return (tt) => tt('data.backupDone', { name, counts: countsText(counts, tt) })
     })
 
   const exportCsv = (kind: Exclude<ExportKind, 'backup'>) =>
@@ -60,7 +63,8 @@ export default function DataPage({ onClose }: { onClose: () => void }) {
       const csv = kind === 'brews' ? brewsToCsv(brews, beans, gear) : beansToCsv(beans)
       const name = exportFileName(kind)
       downloadTextFile(name, csv, MIME_CSV)
-      return `สร้างไฟล์ ${name} แล้ว (${kind === 'brews' ? brews.length : beans.length} แถว) — เปิดได้ใน Excel และ Google Sheets`
+      const rows = kind === 'brews' ? brews.length : beans.length
+      return (tt) => tt('data.csvDone', { name, rows })
     })
 
   const last = settings?.lastBackupAt
@@ -68,8 +72,8 @@ export default function DataPage({ onClose }: { onClose: () => void }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={onClose} aria-label="กลับ">← กลับ</Button>
-        <h2 className="text-xl font-bold">ข้อมูลของฉัน</h2>
+        <Button variant="ghost" onClick={onClose} aria-label={t('common.back')}>{t('common.backArrow')}</Button>
+        <h2 className="text-xl font-bold">{t('data.title')}</h2>
       </div>
 
       {notice && (
@@ -81,58 +85,56 @@ export default function DataPage({ onClose }: { onClose: () => void }) {
               : 'bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-200'
           }`}
         >
-          {notice.text}
+          {notice.message(t)}
         </p>
       )}
 
-      <Card title="สำรองข้อมูล (JSON)">
+      <Card title={t('data.backupCard')}>
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          ไฟล์เดียวเก็บทุกอย่าง: เมล็ด อุปกรณ์ สูตรของฉัน บันทึกการชง และการตั้งค่า — ใช้นำกลับมาเมื่อเปลี่ยนเครื่องหรือข้อมูลหาย
+          {t('data.backupIntro')}
         </p>
         <p className="text-sm" data-testid="last-backup">
-          สำรองล่าสุด:{' '}
+          {t('data.lastBackup')}{' '}
           <strong>
             {settings === undefined
               ? '…'
               : last
-                ? `${formatDateTime(last)} (${daysAgoText(Math.floor((Date.now() - Date.parse(last)) / 86_400_000))})`
-                : 'ยังไม่เคย'}
+                ? `${formatDateTime(last, new Date(), locale)} (${daysAgoText(Math.floor((Date.now() - Date.parse(last)) / 86_400_000), t)})`
+                : t('data.never')}
           </strong>
         </p>
         <Button variant="primary" className="w-full" disabled={busy} onClick={() => void backup()}>
-          ⬇️ ดาวน์โหลดไฟล์สำรอง
+          {t('data.download')}
         </Button>
       </Card>
 
-      <Card title="นำข้อมูลกลับ (Restore)">
+      <Card title={t('data.restoreCard')}>
         <RestoreSection />
       </Card>
 
-      <Card title="ส่งออก CSV (Excel / Google Sheets)">
+      <Card title={t('data.csvCard')}>
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          สำหรับวิเคราะห์เอง ไม่ใช่ไฟล์สำรอง · เปิดใน Excel ภาษาไทยได้ไม่เพี้ยน · ใน Google Sheets ใช้ ไฟล์ → นำเข้า
-          · หัวคอลัมน์เป็นภาษาอังกฤษและระบุหน่วย เช่น <code>dose_g</code>, <code>temp_c</code>
+          {t('data.csvIntro')} <code>dose_g</code>, <code>temp_c</code>
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Button disabled={busy} onClick={() => void exportCsv('brews')}>📖 บันทึกการชง (.csv)</Button>
-          <Button disabled={busy} onClick={() => void exportCsv('beans')}>🫘 คลังเมล็ด (.csv)</Button>
+          <Button disabled={busy} onClick={() => void exportCsv('brews')}>{t('data.csvBrews')}</Button>
+          <Button disabled={busy} onClick={() => void exportCsv('beans')}>{t('data.csvBeans')}</Button>
         </div>
       </Card>
 
-      <Card title="ที่เก็บข้อมูลในเครื่องนี้">
+      <Card title={t('data.storageCard')}>
         <p className="text-sm" data-testid="persist-status">
-          สถานะ:{' '}
+          {t('data.status')}{' '}
           <strong>
-            {persistent === undefined ? '…' : persistent ? 'เก็บถาวร (เบราว์เซอร์ไม่ลบเอง)' : 'ไม่รับประกัน'}
+            {persistent === undefined ? '…' : t(persistent ? 'data.persistent' : 'data.notGuaranteed')}
           </strong>
         </p>
         {persistent === false && (
           <>
             <p className="text-sm text-stone-600 dark:text-stone-400">
-              เบราว์เซอร์อาจลบข้อมูลเมื่อพื้นที่เต็มหรือไม่ได้เปิดแอปนาน (โดยเฉพาะ Safari บน iPhone/iPad ที่ไม่ได้ติดตั้งแอป)
-              — แนะนำให้ติดตั้งลงหน้าจอโฮม (Add to Home Screen) และสำรองข้อมูลสม่ำเสมอ
+              {t('data.storageWarning')}
             </p>
-            <Button onClick={() => void requestPersistentStorage().then(setPersistent)}>ขอเก็บข้อมูลถาวร</Button>
+            <Button onClick={() => void requestPersistentStorage().then(setPersistent)}>{t('data.requestPersist')}</Button>
           </>
         )}
       </Card>

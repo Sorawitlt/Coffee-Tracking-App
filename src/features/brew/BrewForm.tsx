@@ -14,6 +14,8 @@ import { beverageG, daysOffRoast, formatRatio, freshness, ratio, waterForDose } 
 import { adviceToStore } from '../../domain/dialIn'
 import { METHOD_PROFILES } from '../../domain/methods'
 import { METHODS, type Bean, type Brew, type Gear, type Method } from '../../domain/types'
+import type { MessageKey } from '../../i18n'
+import { useI18n } from '../../i18n/I18nProvider'
 import { numberToText, parseNumber } from '../formUtil'
 import { formatDateTime, formatDuration, formatGrams } from '../format'
 import { METHOD_LABEL } from '../labels'
@@ -46,10 +48,10 @@ export interface BrewFormProps {
   /** mode `start`: ผู้ใช้กด "เริ่มชง" (ค่าผ่านการตรวจสอบแล้ว) */
   onStart?: (input: BrewInput) => void
   /**
-   * จบฟอร์ม — `message` = ข้อความยืนยัน (ไม่มี = ยกเลิก)
+   * จบฟอร์ม — `messageKey` = คีย์ข้อความยืนยัน (ไม่มี = ยกเลิก)
    * `adviceBrewId` = มีคำแนะนำใหม่ให้แสดง → ผู้เรียกเปิด `BrewResult` ของบันทึกนี้
    */
-  onDone: (message?: string, adviceBrewId?: string) => void
+  onDone: (messageKey?: MessageKey, adviceBrewId?: string) => void
   onGoToBeans: () => void
 }
 
@@ -75,10 +77,10 @@ interface InnerProps extends BrewFormProps {
   defaultMethod: Method
 }
 
-const SOURCE_TEXT: Record<DraftSource, string> = {
-  sameBean: 'เติมค่าจากการชงครั้งล่าสุดของเมล็ดนี้',
-  sameMethod: 'เติมค่าจากการชงครั้งล่าสุดของวิธีนี้ (เมล็ดอื่น)',
-  recipe: 'เติมค่าจากสูตรตั้งต้น',
+const SOURCE_KEY: Record<DraftSource, MessageKey> = {
+  sameBean: 'brew.source.sameBean',
+  sameMethod: 'brew.source.sameMethod',
+  recipe: 'brew.source.recipe',
 }
 
 /** ขนาด +/− ที่เหมาะกับแต่ละวิธีชง */
@@ -93,6 +95,7 @@ function stepsFor(method: Method) {
 const withUnit = (v: number | undefined, unit: string) => (v === undefined ? '—' : `${formatGrams(v)}${unit}`)
 
 function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, beans, gear, brews, defaultMethod }: InnerProps) {
+  const { t, locale } = useI18n()
   const activeBeans = beans.filter((b) => !b.archived)
   const grinders = gear.filter((g) => g.type === 'grinder')
   const brewers = gear.filter((g) => g.type === 'brewer')
@@ -125,7 +128,7 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
   const [errors, setErrors] = useState<BrewFormErrors>({})
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [actionError, setActionError] = useState<string>()
+  const [actionError, setActionError] = useState<MessageKey>()
   const [tasting, setTasting] = useState<TastingValues>(() =>
     mode === 'edit' && brew ? tastingFromBrew(brew) : emptyTasting(),
   )
@@ -177,9 +180,9 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
   const changeCount = reference ? dialInChangeCount(reference, current) : 0
   const prev = (key: 'doseG' | 'waterG' | 'grindSetting' | 'tempC', unit: string) =>
     changed.has(key) ? withUnit(reference?.[key], unit) : undefined
-  const grinderName = (id?: string) => (id ? (gear.find((g) => g.id === id)?.name ?? 'อุปกรณ์ที่ลบแล้ว') : 'ไม่ระบุ')
+  const grinderName = (id?: string) => (id ? (gear.find((g) => g.id === id)?.name ?? t('common.deletedGear')) : t('common.unspecified'))
 
-  async function run(action: () => Promise<Brew | void>, message: string) {
+  async function run(action: () => Promise<Brew | void>, messageKey: MessageKey) {
     setActionError(undefined)
     setSaving(true)
     try {
@@ -187,9 +190,9 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
       // แสดงหน้าคำแนะนำเฉพาะเมื่อมีคำแนะนำใหม่ (แก้ไขที่ไม่ได้เปลี่ยนคำแนะนำ = กลับรายการเงียบ ๆ)
       const showAdvice =
         saved && saved.advice && (mode !== 'edit' || JSON.stringify(saved.advice) !== JSON.stringify(brew?.advice))
-      onDone(message, showAdvice && saved ? saved.id : undefined)
+      onDone(messageKey, showAdvice && saved ? saved.id : undefined)
     } catch {
-      setActionError('เกิดข้อผิดพลาด ลองใหม่อีกครั้ง')
+      setActionError('common.errorRetry')
       setSaving(false)
     }
   }
@@ -207,12 +210,17 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
     }
     const value: BrewInput = { ...result.value, ...tastingToFields(tasting) }
     value.advice = adviceToStore(value, { bean, grinder: gear.find((g) => g.id === value.grinderId) })
-    if (mode === 'edit' && brew) void run(() => updateBrew(brew.id, value), 'แก้ไขบันทึกแล้ว')
-    else void run(() => addBrew(value), 'บันทึกการชงแล้ว')
+    if (mode === 'edit' && brew) void run(() => updateBrew(brew.id, value), 'brew.msg.edited')
+    else void run(() => addBrew(value), 'brew.msg.saved')
   }
 
-  const title =
-    mode === 'edit' ? 'แก้ไขบันทึกการชง' : mode === 'repeat' ? 'ชงซ้ำ' : mode === 'start' ? 'เตรียมชง' : 'บันทึกการชง'
+  const title = t(
+    mode === 'edit' ? 'brew.form.titleEdit' : mode === 'repeat' ? 'brew.form.titleRepeat' : mode === 'start' ? 'brew.form.titleStart' : 'brew.form.titleNew',
+  )
+  const err = (key: keyof BrewFormValues) => {
+    const k = errors[key]
+    return k ? t(k) : undefined
+  }
 
   if (mode !== 'edit' && activeBeans.length === 0) {
     return (
@@ -220,10 +228,10 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
         <h2 className="text-xl font-bold">{title}</h2>
         <div className="rounded-2xl border border-dashed border-stone-300 p-8 text-center dark:border-stone-600">
           <p className="text-4xl" aria-hidden>🫘</p>
-          <p className="mt-2 font-medium">ต้องมีเมล็ดในคลังก่อนจึงบันทึกการชงได้</p>
-          <Button variant="primary" className="mt-4" onClick={onGoToBeans}>ไปเพิ่มเมล็ด</Button>
+          <p className="mt-2 font-medium">{t('brew.form.needBeans')}</p>
+          <Button variant="primary" className="mt-4" onClick={onGoToBeans}>{t('brew.form.goAddBeans')}</Button>
         </div>
-        {mode !== 'start' && <Button className="w-full" onClick={() => onDone()}>ย้อนกลับ</Button>}
+        {mode !== 'start' && <Button className="w-full" onClick={() => onDone()}>{t('brew.form.back')}</Button>}
       </div>
     )
   }
@@ -232,7 +240,7 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
   const beanOptions = bean && bean.archived ? [bean, ...activeBeans] : activeBeans
   const gearOptions = (list: Gear[], selectedId: string) =>
     selectedId && !list.some((g) => g.id === selectedId)
-      ? [<option key={selectedId} value={selectedId}>(อุปกรณ์ที่ลบแล้ว)</option>, ...list.map(opt)]
+      ? [<option key={selectedId} value={selectedId}>{t('common.deletedGearOption')}</option>, ...list.map(opt)]
       : list.map(opt)
 
   return (
@@ -246,23 +254,23 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
       )}
       {mode !== 'edit' && source && (
         <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-700 dark:bg-stone-800 dark:text-stone-300">
-          {SOURCE_TEXT[source]}
-          {reference && ` · ${formatDateTime(reference.brewedAt)}`}
+          {t(SOURCE_KEY[source])}
+          {reference && ` · ${formatDateTime(reference.brewedAt, new Date(), locale)}`}
         </p>
       )}
       {mode === 'repeat' && brew && (
         <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-700 dark:bg-stone-800 dark:text-stone-300">
-          คัดลอกค่าจากการชงเมื่อ {formatDateTime(brew.brewedAt)} — ปรับได้ทีละอย่างแล้วกดบันทึก
+          {t('brew.form.copiedFrom', { when: formatDateTime(brew.brewedAt, new Date(), locale) })}
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <SelectField label="วิธีชง" required value={values.method} onChange={(e) => onMethod(e.target.value as Method)}>
+        <SelectField label={t('common.method')} required value={values.method} onChange={(e) => onMethod(e.target.value as Method)}>
           {METHODS.map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}
         </SelectField>
-        <SelectField label="เมล็ด" required value={values.beanId} error={errors.beanId} onChange={(e) => onBean(e.target.value)}>
-          {!values.beanId && <option value="">— เลือกเมล็ด —</option>}
-          {beanOptions.map((b) => <option key={b.id} value={b.id}>{b.name}{b.archived ? ' (Archive)' : ''}</option>)}
+        <SelectField label={t('common.bean')} required value={values.beanId} error={err('beanId')} onChange={(e) => onBean(e.target.value)}>
+          {!values.beanId && <option value="">{t('brew.form.chooseBean')}</option>}
+          {beanOptions.map((b) => <option key={b.id} value={b.id}>{b.name}{b.archived ? ` (${t('bean.archive')})` : ''}</option>)}
         </SelectField>
       </div>
 
@@ -270,34 +278,34 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
         <p className="-mt-2 text-sm text-stone-600 dark:text-stone-400">
           {days !== undefined && days >= 0 && (
             <>
-              คั่วมา {days} วัน{freshness(days) === 'tooFresh' ? ' (ควรพักก่อน)' : freshness(days) === 'stale' ? ' (ผ่านมานาน)' : ''}
+              {t('brew.form.roastedDays', { n: days })}{freshness(days) === 'tooFresh' ? t('brew.form.tooFreshSuffix') : freshness(days) === 'stale' ? t('brew.form.staleSuffix') : ''}
               {' · '}
             </>
           )}
-          เหลือ {formatGrams(Math.max(0, bean.remainingG))} g
+          {t('brew.form.remainingG', { g: formatGrams(Math.max(0, bean.remainingG)) })}
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <NumberStepper label="กาแฟ (g)" required value={values.doseG} step={step.dose} min={step.dose}
-          start={dose ?? 15} error={errors.doseG} changedFrom={prev('doseG', ' g')}
+        <NumberStepper label={t('brew.form.dose')} required value={values.doseG} step={step.dose} min={step.dose}
+          start={dose ?? 15} error={err('doseG')} changedFrom={prev('doseG', ' g')}
           onChange={(v) => set('doseG', v)} />
-        <NumberStepper label="น้ำ (g)" required value={values.waterG} step={step.water} min={step.water}
-          start={water ?? 250} error={errors.waterG} changedFrom={prev('waterG', ' g')}
+        <NumberStepper label={t('brew.form.water')} required value={values.waterG} step={step.water} min={step.water}
+          start={water ?? 250} error={err('waterG')} changedFrom={prev('waterG', ' g')}
           onChange={(v) => set('waterG', v)} />
       </div>
 
       <p aria-live="polite" className="-mt-2 text-center text-lg font-semibold tabular-nums">
-        {r !== undefined ? `อัตราส่วน ${formatRatio(r)}` : 'อัตราส่วน —'}
+        {r !== undefined ? t('brew.form.ratio', { ratio: formatRatio(r) }) : t('brew.form.ratioNone')}
         {bev !== undefined && bev > 0 && (
           <span className="ml-2 text-sm font-normal text-stone-600 dark:text-stone-400">
-            ได้เครื่องดื่ม ~{formatGrams(bev)} g{parseNumber(values.yieldG) ? '' : ' (ประมาณ)'}
+            {t('brew.form.beverage', { g: formatGrams(bev) })}{parseNumber(values.yieldG) ? '' : t('brew.form.estimated')}
           </span>
         )}
       </p>
 
       {mode === 'start' && (
-        <div role="group" aria-label="อัตราส่วนลัด" className="-mt-2 flex flex-wrap justify-center gap-2">
+        <div role="group" aria-label={t('brew.form.ratioPresets')} className="-mt-2 flex flex-wrap justify-center gap-2">
           {RATIO_PRESETS[values.method].map((x) => (
             <button
               key={x}
@@ -315,67 +323,70 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
 
       {grinders.length > 0 && (
         <div>
-          <SelectField label="เครื่องบด" value={values.grinderId} onChange={(e) => set('grinderId', e.target.value)}>
-            <option value="">— ไม่ระบุ —</option>
+          <SelectField label={t('brew.form.grinder')} value={values.grinderId} onChange={(e) => set('grinderId', e.target.value)}>
+            <option value="">{t('common.notSpecified')}</option>
             {gearOptions(grinders, values.grinderId)}
           </SelectField>
           {changed.has('grinderId') && (
             <p className="mt-1 text-sm font-medium text-amber-800 dark:text-amber-300">
-              ▲ เปลี่ยน · ครั้งก่อน {grinderName(reference?.grinderId)}
+              {t('brew.form.changedPrev', { prev: grinderName(reference?.grinderId) })}
             </p>
           )}
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <NumberStepper label="เบอร์บด" value={values.grindSetting}
+        <NumberStepper label={t('brew.form.grindSetting')} value={values.grindSetting}
           step={scale?.step ?? 1} min={scale?.min ?? 0} max={scale?.max}
           start={reference?.grindSetting ?? (scale ? scale.min : undefined)}
-          hint={scale ? `ช่วง ${scale.min}–${scale.max}` : undefined}
-          error={errors.grindSetting} changedFrom={prev('grindSetting', '')}
+          hint={scale ? t('brew.form.grindRange', { min: scale.min, max: scale.max }) : undefined}
+          error={err('grindSetting')} changedFrom={prev('grindSetting', '')}
           onChange={(v) => set('grindSetting', v)} />
-        <NumberStepper label="อุณหภูมิ (°C)" value={values.tempC} step={1} min={0} max={100}
+        <NumberStepper label={t('brew.form.temp')} value={values.tempC} step={1} min={0} max={100}
           start={reference?.tempC ?? 93}
-          hint={profile.tempRangeC ? `แนะนำ ${profile.tempRangeC[0]}–${profile.tempRangeC[1]}` : undefined}
-          error={errors.tempC} changedFrom={prev('tempC', ' °C')}
+          hint={profile.tempRangeC ? t('brew.form.tempHint', { min: profile.tempRangeC[0], max: profile.tempRangeC[1] }) : undefined}
+          error={err('tempC')} changedFrom={prev('tempC', ' °C')}
           onChange={(v) => set('tempC', v)} />
       </div>
 
       {changeCount >= 2 && (
         <p role="status" className="rounded-xl border border-amber-400 bg-amber-50 p-3 text-sm font-medium text-amber-900 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-200">
-          เปลี่ยน {changeCount} ตัวแปรพร้อมกัน — จะดูยากว่าอะไรทำให้รสเปลี่ยน ลองปรับทีละอย่าง
+          {t('brew.form.manyChanges', { n: changeCount })}
         </p>
       )}
 
       {mode === 'start' ? (
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          เวลาเป้าหมาย {formatDuration(profile.timeRangeSec[0])}–{formatDuration(profile.timeRangeSec[1])} · เวลาชงจริงจะบันทึกจากตัวจับเวลาให้อัตโนมัติ
+          {t('brew.form.targetTime', { range: `${formatDuration(profile.timeRangeSec[0])}–${formatDuration(profile.timeRangeSec[1])}` })}
         </p>
       ) : (
-        <NumberStepper label="เวลาชง (วินาที)" value={values.totalTimeSec} step={5} min={5} start={profile.timeRangeSec[0]}
-          hint={`${parseNumber(values.totalTimeSec) ? `= ${formatDuration(parseNumber(values.totalTimeSec)!)} · ` : ''}เป้าหมาย ${formatDuration(profile.timeRangeSec[0])}–${formatDuration(profile.timeRangeSec[1])}`}
-          error={errors.totalTimeSec} onChange={(v) => set('totalTimeSec', v)} />
+        <NumberStepper label={t('brew.form.time')} value={values.totalTimeSec} step={5} min={5} start={profile.timeRangeSec[0]}
+          hint={t(parseNumber(values.totalTimeSec) ? 'brew.form.timeHintWith' : 'brew.form.timeHint', {
+            time: parseNumber(values.totalTimeSec) ? formatDuration(parseNumber(values.totalTimeSec)!) : '',
+            range: `${formatDuration(profile.timeRangeSec[0])}–${formatDuration(profile.timeRangeSec[1])}`,
+          })}
+          error={err('totalTimeSec')} onChange={(v) => set('totalTimeSec', v)} />
       )}
 
       {mode !== 'start' && <TastingFields value={tasting} onChange={setTasting} />}
 
       {mode !== 'start' && (
         <details className="rounded-2xl border border-stone-200 p-3 dark:border-stone-700">
-          <summary className="flex min-h-12 cursor-pointer items-center text-base font-semibold">รายละเอียดเพิ่มเติม (ไม่บังคับ)</summary>
+          <summary className="flex min-h-12 cursor-pointer items-center text-base font-semibold">{t('brew.form.more')}</summary>
           <div className="mt-2 space-y-4">
             {brewers.length > 0 && (
-              <SelectField label="อุปกรณ์ชง" value={values.brewerId} onChange={(e) => set('brewerId', e.target.value)}>
-                <option value="">— ไม่ระบุ —</option>
+              <SelectField label={t('brew.form.brewer')} value={values.brewerId} onChange={(e) => set('brewerId', e.target.value)}>
+                <option value="">{t('common.notSpecified')}</option>
                 {gearOptions(brewers, values.brewerId)}
               </SelectField>
             )}
             <div className="grid grid-cols-2 gap-3">
-              <NumberField label="น้ำหนักเครื่องดื่มจริง (g)" value={values.yieldG} error={errors.yieldG}
-                hint="เว้นว่าง = ประมาณให้" onChange={(e) => set('yieldG', e.target.value)} />
-              <NumberField label="TDS (%)" value={values.tds} error={errors.tds}
-                hint="ถ้ามี Refractometer" onChange={(e) => set('tds', e.target.value)} />
+              <NumberField label={t('brew.form.yield')} value={values.yieldG} error={err('yieldG')}
+                hint={t('brew.form.yieldHint')} onChange={(e) => set('yieldG', e.target.value)} />
+              <NumberField label={t('brew.form.tds')} value={values.tds} error={err('tds')}
+                hint={t('brew.form.tdsHint')} onChange={(e) => set('tds', e.target.value)} />
             </div>
-            <TextField label="วันและเวลาที่ชง" type="datetime-local" value={values.brewedAt} error={errors.brewedAt}
+            <TextField label={t('brew.form.brewedAt')} type="datetime-local" value={values.brewedAt} error={err('brewedAt')}
               max={toDateTimeLocal(new Date())} onChange={(e) => set('brewedAt', e.target.value)} />
           </div>
         </details>
@@ -383,15 +394,15 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
 
       {lowStock && bean && (
         <p role="status" className="rounded-xl bg-orange-50 p-3 text-sm font-medium text-orange-900 dark:bg-orange-950/40 dark:text-orange-200">
-          เมล็ดเหลือ {formatGrams(Math.max(0, bean.remainingG))} g น้อยกว่าที่ใช้ — {mode === 'start' ? 'ยังชงต่อได้' : 'ยังบันทึกได้'} (ยอดคงเหลือจะเป็น 0)
+          {t('brew.form.lowStock', { g: formatGrams(Math.max(0, bean.remainingG)), action: t(mode === 'start' ? 'brew.form.lowStockStart' : 'brew.form.lowStockSave') })}
         </p>
       )}
-      {actionError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-800 dark:bg-red-950 dark:text-red-200">{actionError}</p>}
+      {actionError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-800 dark:bg-red-950 dark:text-red-200">{t(actionError)}</p>}
 
       <div className="flex gap-3">
-        {mode !== 'start' && <Button className="flex-1" onClick={() => onDone()} disabled={saving}>ยกเลิก</Button>}
+        {mode !== 'start' && <Button className="flex-1" onClick={() => onDone()} disabled={saving}>{t('common.cancel')}</Button>}
         <Button variant="primary" type="submit" className={mode === 'start' ? 'h-14 flex-1 text-lg' : 'flex-1'} disabled={saving}>
-          {mode === 'start' ? '▶ เริ่มชง' : 'บันทึก'}
+          {mode === 'start' ? t('brew.form.start') : t('common.save')}
         </Button>
       </div>
 
@@ -399,15 +410,15 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
         <div className="border-t border-stone-200 pt-4 dark:border-stone-700">
           {!confirmDelete ? (
             <Button variant="ghost" className="w-full text-red-700 dark:text-red-400" disabled={saving} onClick={() => setConfirmDelete(true)}>
-              ลบบันทึกนี้
+              {t('brew.form.delete')}
             </Button>
           ) : (
-            <div role="alertdialog" aria-label="ยืนยันการลบ" className="space-y-3 rounded-xl border border-red-300 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950">
-              <p className="text-sm font-medium">ลบบันทึกนี้ถาวร? น้ำหนักกาแฟ {formatGrams(brew.doseG)} g จะถูกคืนเข้ายอดคงเหลือของเมล็ด</p>
+            <div role="alertdialog" aria-label={t('common.confirmDelete')} className="space-y-3 rounded-xl border border-red-300 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950">
+              <p className="text-sm font-medium">{t('brew.form.deleteWarning', { g: formatGrams(brew.doseG) })}</p>
               <div className="flex gap-3">
-                <Button className="flex-1" onClick={() => setConfirmDelete(false)}>ไม่ลบ</Button>
-                <Button variant="danger" className="flex-1" disabled={saving} onClick={() => void run(() => deleteBrew(brew.id), 'ลบบันทึกแล้ว')}>
-                  ยืนยันลบ
+                <Button className="flex-1" onClick={() => setConfirmDelete(false)}>{t('common.keep')}</Button>
+                <Button variant="danger" className="flex-1" disabled={saving} onClick={() => void run(() => deleteBrew(brew.id), 'brew.msg.deleted')}>
+                  {t('common.confirmDeleteBtn')}
                 </Button>
               </div>
             </div>

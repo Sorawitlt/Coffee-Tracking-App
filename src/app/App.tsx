@@ -4,20 +4,24 @@ import BeansPage from '../features/beans/BeansPage'
 import LogPage from '../features/brew/LogPage'
 import { BackupBanner, useBackupReminder } from '../features/export/BackupBanner'
 import DataPage from '../features/export/DataPage'
+import { I18nProvider, useT } from '../i18n/I18nProvider'
+import { LanguageSwitch } from '../components/LanguageSwitch'
+import type { MessageKey } from '../i18n'
 
 // กราฟ (Recharts) แยกเป็นก้อนโหลดตอนเปิดแท็บ "สรุป" ครั้งแรก — ไม่ถ่วงการเปิดแอปและหน้าชง
 const InsightsPage = lazy(() => import('../features/insights/InsightsPage'))
 
 const TABS = [
-  { id: 'brew', icon: '☕', label: 'ชง' },
-  { id: 'log', icon: '📖', label: 'บันทึก' },
-  { id: 'beans', icon: '🫘', label: 'เมล็ด' },
-  { id: 'insights', icon: '📊', label: 'สรุป' },
-] as const
+  { id: 'brew', icon: '☕', labelKey: 'app.tab.brew' },
+  { id: 'log', icon: '📖', labelKey: 'app.tab.log' },
+  { id: 'beans', icon: '🫘', labelKey: 'app.tab.beans' },
+  { id: 'insights', icon: '📊', labelKey: 'app.tab.insights' },
+] as const satisfies readonly { id: string; icon: string; labelKey: MessageKey }[]
 
 type TabId = (typeof TABS)[number]['id']
 
-export default function App() {
+function AppShell() {
+  const t = useT()
   const [tab, setTab] = useState<TabId>('brew')
   // หน้า "ข้อมูลของฉัน" (สำรอง/นำกลับ/ส่งออก) เปิดจากปุ่มมุมบน — ไม่ใช่แท็บหลัก
   const [dataOpen, setDataOpen] = useState(false)
@@ -32,15 +36,18 @@ export default function App() {
       <main className="flex-1 p-4">
         <header className="mb-4 flex items-center justify-between gap-2">
           <h1 className="text-2xl font-bold">Brew Log</h1>
-          <button
-            type="button"
-            onClick={() => setDataOpen(true)}
-            aria-label={`ข้อมูลของฉัน: สำรอง นำกลับ ส่งออก${reminder?.due ? ' (ถึงเวลาสำรองข้อมูล)' : ''}`}
-            className="relative flex min-h-12 min-w-12 items-center justify-center rounded-xl text-2xl hover:bg-stone-200 dark:hover:bg-stone-800"
-          >
-            <span aria-hidden>💾</span>
-            {reminder?.due && <span aria-hidden className="absolute right-2 top-2 size-3 rounded-full bg-red-600" />}
-          </button>
+          <div className="flex items-center gap-1">
+            <LanguageSwitch />
+            <button
+              type="button"
+              onClick={() => setDataOpen(true)}
+              aria-label={t('app.dataButton') + (reminder?.due ? t('app.dataButtonDue') : '')}
+              className="relative flex min-h-12 min-w-12 items-center justify-center rounded-xl text-2xl hover:bg-stone-200 dark:hover:bg-stone-800"
+            >
+              <span aria-hidden>💾</span>
+              {reminder?.due && <span aria-hidden className="absolute right-2 top-2 size-3 rounded-full bg-red-600" />}
+            </button>
+          </div>
         </header>
         {/* ไม่แสดงบนแท็บ "ชง" เพื่อไม่ดันตัวจับเวลา — ที่นั่นเตือนด้วยจุดแดงที่ปุ่มข้อมูลแทน */}
         {!dataOpen && tab !== 'brew' && <BackupBanner reminder={reminder} onOpen={() => setDataOpen(true)} />}
@@ -58,20 +65,28 @@ export default function App() {
           </Suspense>
         ) : null}
       </main>
-      <nav aria-label="เมนูหลัก" className="sticky bottom-0 grid grid-cols-4 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-stone-700 dark:bg-stone-800">
-        {TABS.map((t) => (
+      <nav aria-label={t('app.nav')} className="sticky bottom-0 grid grid-cols-4 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-stone-700 dark:bg-stone-800">
+        {TABS.map((item) => (
           <button
-            key={t.id}
+            key={item.id}
             type="button"
-            onClick={() => goTab(t.id)}
-            aria-current={!dataOpen && t.id === tab ? 'page' : undefined}
-            className={`flex min-h-14 flex-col items-center justify-center text-sm ${!dataOpen && t.id === tab ? 'font-semibold text-amber-800 dark:text-amber-400' : 'text-stone-500'}`}
+            onClick={() => goTab(item.id)}
+            aria-current={!dataOpen && item.id === tab ? 'page' : undefined}
+            className={`flex min-h-14 flex-col items-center justify-center text-sm ${!dataOpen && item.id === tab ? 'font-semibold text-amber-800 dark:text-amber-400' : 'text-stone-500'}`}
           >
-            <span aria-hidden className="text-xl">{t.icon}</span>
-            {t.label}
+            <span aria-hidden className="text-xl">{item.icon}</span>
+            {t(item.labelKey)}
           </button>
         ))}
       </nav>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <I18nProvider>
+      <AppShell />
+    </I18nProvider>
   )
 }

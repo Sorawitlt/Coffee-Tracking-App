@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useT } from '../../i18n/I18nProvider'
 
 /** ส่วนประกอบร่วมของกราฟ: กรอบการ์ด, ปุ่มสลับกราฟ/ตาราง, Tooltip (ค่านำ ป้ายตาม) */
 
@@ -12,6 +13,7 @@ export function ChartCard({
   children: ReactNode
   actions?: ReactNode
 }) {
+  const t = useT()
   return (
     <section aria-label={title} className="viz-root rounded-2xl border border-stone-200 bg-[var(--viz-surface)] p-3 dark:border-stone-700">
       <div className="flex items-start justify-between gap-2">
@@ -25,7 +27,7 @@ export function ChartCard({
           onClick={onToggleTable}
           className="min-h-12 shrink-0 rounded-xl px-3 text-base font-semibold text-amber-800 hover:bg-amber-50 aria-pressed:bg-amber-100 dark:text-amber-400 dark:hover:bg-stone-800 dark:aria-pressed:bg-stone-800"
         >
-          {tableView ? '📈 ดูกราฟ' : '▦ ดูตาราง'}
+          {t(tableView ? 'chart.viewChart' : 'chart.viewTable')}
         </button>
       </div>
       {actions && <div className="mt-2">{actions}</div>}

@@ -1,39 +1,43 @@
 import type { BackupCounts, BackupError, BackupTable } from '../../domain/backup'
+import { tTh, type MessageKey, type TFunction } from '../../i18n'
 
-/** ข้อความภาษาไทยของไฟล์สำรอง (รวมไว้ที่เดียวเพื่อย้ายเข้า i18n ในขั้น 9 ได้ง่าย) */
+/** ข้อความของไฟล์สำรอง — ข้อความอยู่ใน i18n (`backup.*`) ที่นี่ประกอบคีย์ + ค่าตัวแปร */
 
-const TABLE_LABEL: Record<BackupTable, string> = {
-  beans: 'เมล็ด',
-  gear: 'อุปกรณ์',
-  recipes: 'สูตร',
-  brews: 'บันทึกการชง',
+/** ข้อความที่ "ยังไม่แปล" — เก็บใน state ได้ แล้วแปลตอนแสดง (สลับภาษากลางทางแล้วข้อความตามภาษาใหม่) */
+export type Message = (t: TFunction) => string
+
+const TABLE_KEY: Record<BackupTable, MessageKey> = {
+  beans: 'backup.table.beans',
+  gear: 'backup.table.gear',
+  recipes: 'backup.table.recipes',
+  brews: 'backup.table.brews',
 }
 
-export function backupErrorText(error: BackupError): string {
+export function backupErrorText(error: BackupError, t: TFunction = tTh): string {
   switch (error.code) {
     case 'notJson':
-      return 'อ่านไฟล์ไม่ได้ — ไม่ใช่ไฟล์ JSON หรือไฟล์เสียหาย'
+      return t('backup.err.notJson')
     case 'notBackup':
-      return 'ไฟล์นี้ไม่ใช่ไฟล์สำรองของ Brew Log (ต้องเป็นไฟล์ .json ที่สร้างจากปุ่ม "ดาวน์โหลดไฟล์สำรอง")'
+      return t('backup.err.notBackup')
     case 'newerVersion':
-      return 'ไฟล์นี้สร้างจากแอปเวอร์ชันใหม่กว่า — กรุณาอัปเดตแอปก่อนนำกลับ'
+      return t('backup.err.newerVersion')
     case 'missingTable':
-      return `ไฟล์ไม่ครบ: ไม่พบข้อมูล${TABLE_LABEL[error.table]}`
+      return t('backup.err.missingTable', { table: t(TABLE_KEY[error.table]) })
     case 'invalidRecord':
-      return `ข้อมูลในไฟล์ไม่ถูกต้อง: ${TABLE_LABEL[error.table]}รายการที่ ${error.index + 1} (ฟิลด์ ${error.field})`
+      return t('backup.err.invalidRecord', { table: t(TABLE_KEY[error.table]), n: error.index + 1, field: error.field })
     case 'duplicateId':
-      return `ข้อมูลในไฟล์ไม่ถูกต้อง: ${TABLE_LABEL[error.table]}มีรหัสซ้ำกัน`
+      return t('backup.err.duplicateId', { table: t(TABLE_KEY[error.table]) })
     case 'missingBean':
-      return 'ข้อมูลในไฟล์ไม่ครบ: มีบันทึกการชงที่อ้างถึงเมล็ดซึ่งไม่อยู่ในไฟล์'
+      return t('backup.err.missingBean')
   }
 }
 
 /** เช่น "3 เมล็ด · 1 อุปกรณ์ · 0 สูตรของฉัน · 42 บันทึกการชง" */
-export function countsText(c: BackupCounts): string {
-  return `${c.beans} เมล็ด · ${c.gear} อุปกรณ์ · ${c.recipes} สูตรของฉัน · ${c.brews} บันทึกการชง`
+export function countsText(c: BackupCounts, t: TFunction = tTh): string {
+  return t('backup.counts', { beans: c.beans, gear: c.gear, recipes: c.recipes, brews: c.brews })
 }
 
 /** เช่น "วันนี้", "3 วันที่แล้ว" */
-export function daysAgoText(days: number): string {
-  return days <= 0 ? 'วันนี้' : `${days} วันที่แล้ว`
+export function daysAgoText(days: number, t: TFunction = tTh): string {
+  return days <= 0 ? t('backup.today') : t('backup.daysAgo', { n: days })
 }

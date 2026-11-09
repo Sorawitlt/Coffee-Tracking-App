@@ -3,17 +3,19 @@ import { CartesianGrid, ReferenceArea, ResponsiveContainer, Scatter, ScatterChar
 import { TARGET_RANGES } from '../../domain/calc'
 import { CONTROL_FAMILIES, controlPoints, type ControlFamily, type ControlPoint } from '../../domain/insights'
 import type { Bean, Brew } from '../../domain/types'
+import type { MessageKey } from '../../i18n'
+import { useI18n } from '../../i18n/I18nProvider'
 import { formatDateTime } from '../format'
 import { METHOD_LABEL } from '../labels'
 import { ChartCard, DataTable, EmptyChart, TooltipBox } from './chartParts'
 
-const FAMILY_LABEL: Record<ControlFamily, string> = { filter: 'Filter / Pour-over', espresso: 'Espresso' }
+const FAMILY_KEY: Record<ControlFamily, MessageKey> = { filter: 'control.family.filter', espresso: 'control.family.espresso' }
 /** ขั้นปัดขอบแกนของแต่ละ family (TDS ของ Filter เป็นหน่วยละเอียดกว่า Espresso มาก) */
 const AXIS_STEP: Record<ControlFamily, { x: number; y: number }> = {
   filter: { x: 0.1, y: 2 },
   espresso: { x: 1, y: 2 },
 }
-const STATUS_TEXT = { low: 'ต่ำกว่าเป้า', ok: 'ในเป้า', high: 'สูงกว่าเป้า' } as const
+const STATUS_KEY = { low: 'control.status.low', ok: 'control.status.ok', high: 'control.status.high' } as const satisfies Record<string, MessageKey>
 
 /** ขอบแกนที่ครอบทั้งข้อมูลและกรอบเป้าหมายเสมอ (กรอบต้องเห็นครบแม้ยังไม่มีข้อมูล/ข้อมูลอยู่ในกรอบหมด) */
 export function axisDomain(values: readonly number[], target: readonly [number, number], step: number): [number, number] {
@@ -56,6 +58,7 @@ function Dot({ cx = 0, cy = 0, inRange }: { cx?: number; cy?: number; inRange: b
  * ล่าง = สกัดน้อย · บน = สกัดมาก · ซ้าย = จืด · ขวา = เข้ม
  */
 export function ControlChart({ brews, beans }: Props) {
+  const { t, locale } = useI18n()
   const [family, setFamily] = useState<ControlFamily>('filter')
   const [table, setTable] = useState(false)
   const target = TARGET_RANGES[family]
@@ -65,10 +68,11 @@ export function ControlChart({ brews, beans }: Props) {
   const step = AXIS_STEP[family]
   const xDomain = axisDomain(points.map((p) => p.tds), target.tds, step.x)
   const yDomain = axisDomain(points.map((p) => p.ey), target.ey, step.y)
-  const name = (p: ControlPoint) => `${METHOD_LABEL[p.method]} · ${beans.get(p.beanId)?.name ?? 'เมล็ดที่ลบแล้ว'}`
+  const name = (p: ControlPoint) => `${METHOD_LABEL[p.method]} · ${beans.get(p.beanId)?.name ?? t('common.deletedBean')}`
 
+  const familyName = t(FAMILY_KEY[family])
   const familyPicker = (
-    <div role="group" aria-label="ประเภทการชง" className="grid grid-cols-2 gap-1 rounded-xl bg-stone-200 p-1 dark:bg-stone-800">
+    <div role="group" aria-label={t('control.familyAria')} className="grid grid-cols-2 gap-1 rounded-xl bg-stone-200 p-1 dark:bg-stone-800">
       {CONTROL_FAMILIES.map((f) => (
         <button
           key={f}
@@ -77,7 +81,7 @@ export function ControlChart({ brews, beans }: Props) {
           onClick={() => setFamily(f)}
           className={`min-h-12 rounded-lg text-sm font-semibold ${f === family ? 'bg-white text-amber-900 shadow-sm dark:bg-stone-600 dark:text-amber-300' : 'text-stone-600 dark:text-stone-400'}`}
         >
-          {FAMILY_LABEL[f]}
+          {t(FAMILY_KEY[f])}
         </button>
       ))}
     </div>
@@ -85,36 +89,35 @@ export function ControlChart({ brews, beans }: Props) {
 
   return (
     <ChartCard
-      title="Brew Control Chart"
-      subtitle="ความเข้ม (TDS) × การสกัด (EY) เทียบช่วงเป้าหมาย SCA"
+      title={t('control.title')}
+      subtitle={t('control.subtitle')}
       tableView={table}
       onToggleTable={() => setTable((v) => !v)}
       actions={familyPicker}
     >
       {points.length === 0 ? (
         <EmptyChart>
-          ยังไม่มีการชงแบบ {FAMILY_LABEL[family]} ที่ใส่ค่า TDS — ต้องใช้ Refractometer จึงเป็นข้อมูลเสริมที่ไม่บังคับ
-          (ใส่ได้ในช่อง “รายละเอียดเพิ่มเติม” ตอนบันทึกการชง)
+          {t('control.empty', { family: familyName })}
         </EmptyChart>
       ) : table ? (
         <DataTable
-          caption={`ค่า TDS และ EY ของการชงแบบ ${FAMILY_LABEL[family]}`}
-          headers={['วันที่ชง', 'การชง', 'TDS %', 'EY %', 'ผล']}
+          caption={t('control.tableCaption', { family: familyName })}
+          headers={[t('table.brewedAt'), t('table.brew'), t('control.colTds'), t('control.colEy'), t('table.result')]}
           rows={[...points].reverse().map((p) => [
-            formatDateTime(p.brewedAt), name(p), p.tds, p.ey,
-            p.inRange ? 'อยู่ในเป้า' : `ความเข้ม${STATUS_TEXT[p.tdsStatus]} · การสกัด${STATUS_TEXT[p.eyStatus]}`,
+            formatDateTime(p.brewedAt, new Date(), locale), name(p), p.tds, p.ey,
+            p.inRange ? t('control.inTarget') : t('control.outOfTarget', { tds: t(STATUS_KEY[p.tdsStatus]), ey: t(STATUS_KEY[p.eyStatus]) }),
           ])}
         />
       ) : (
         <>
-          <div role="img" aria-label={`แผนภาพกระจาย TDS กับ EY ${points.length} ครั้ง อยู่ในเป้าหมาย ${inside.length} ครั้ง — ดูรายละเอียดทั้งหมดในมุมมองตาราง`}>
+          <div role="img" aria-label={t('control.chartAria', { n: points.length, inside: inside.length })}>
             <ResponsiveContainer width="100%" height={280} initialDimension={{ width: 320, height: 280 }}>
               <ScatterChart margin={{ top: 8, right: 12, bottom: 16, left: 0 }}>
                 <CartesianGrid stroke="var(--viz-grid)" />
                 <XAxis
                   type="number" dataKey="tds" name="TDS" unit="%" domain={xDomain} ticks={axisTicks(xDomain, step.x)}
                   stroke="var(--viz-axis)" tick={{ fill: 'var(--viz-text)', fontSize: 12 }} tickLine={false}
-                  label={{ value: 'TDS (%)', position: 'insideBottom', offset: -10, fill: 'var(--viz-text)', fontSize: 12 }}
+                  label={{ value: t('control.xLabel'), position: 'insideBottom', offset: -10, fill: 'var(--viz-text)', fontSize: 12 }}
                 />
                 <YAxis
                   type="number" dataKey="ey" name="EY" unit="%" domain={yDomain} ticks={axisTicks(yDomain, step.y)} width={36}
@@ -131,36 +134,36 @@ export function ControlChart({ brews, beans }: Props) {
                     if (!p) return null
                     return (
                       <TooltipBox
-                        title={`${formatDateTime(p.brewedAt)} · ${name(p)}`}
+                        title={`${formatDateTime(p.brewedAt, new Date(), locale)} · ${name(p)}`}
                         rows={[
-                          { value: `${p.tds}%`, label: `TDS (${STATUS_TEXT[p.tdsStatus]})` },
-                          { value: `${p.ey}%`, label: `EY (${STATUS_TEXT[p.eyStatus]})` },
+                          { value: `${p.tds}%`, label: t('control.tdsLabel', { status: t(STATUS_KEY[p.tdsStatus]) }) },
+                          { value: `${p.ey}%`, label: t('control.eyLabel', { status: t(STATUS_KEY[p.eyStatus]) }) },
                         ]}
                       />
                     )
                   }}
                 />
-                <Scatter name="นอกเป้าหมาย" data={outside} shape={(props: { cx?: number; cy?: number }) => <Dot {...props} inRange={false} />} isAnimationActive={false} />
-                <Scatter name="ในเป้าหมาย" data={inside} shape={(props: { cx?: number; cy?: number }) => <Dot {...props} inRange />} isAnimationActive={false} />
+                <Scatter name={t('control.seriesOut')} data={outside} shape={(props: { cx?: number; cy?: number }) => <Dot {...props} inRange={false} />} isAnimationActive={false} />
+                <Scatter name={t('control.seriesIn')} data={inside} shape={(props: { cx?: number; cy?: number }) => <Dot {...props} inRange />} isAnimationActive={false} />
               </ScatterChart>
             </ResponsiveContainer>
           </div>
-          <ul aria-label="คำอธิบายสัญลักษณ์" className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-700 dark:text-stone-300">
+          <ul aria-label={t('control.legendAria')} className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-700 dark:text-stone-300">
             <li className="flex items-center gap-1.5">
               <svg width="14" height="14" aria-hidden><circle cx="7" cy="7" r="5" fill="var(--viz-series)" /></svg>
-              ในเป้าหมาย ({inside.length})
+              {t('control.legendIn', { n: inside.length })}
             </li>
             <li className="flex items-center gap-1.5">
               <svg width="14" height="14" aria-hidden><circle cx="7" cy="7" r="5" fill="var(--viz-surface)" stroke="var(--viz-muted)" strokeWidth="2" /></svg>
-              นอกเป้าหมาย ({outside.length})
+              {t('control.legendOut', { n: outside.length })}
             </li>
             <li className="flex items-center gap-1.5">
               <svg width="14" height="14" aria-hidden><rect width="14" height="14" rx="2" fill="var(--viz-series)" fillOpacity="0.15" /></svg>
-              กรอบเป้าหมาย SCA
+              {t('control.legendBox')}
             </li>
           </ul>
           <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-            อ่านกราฟ: ต่ำกว่ากรอบ = สกัดน้อย (เปรี้ยว) · สูงกว่า = สกัดมาก (ขม) · ซ้าย = จืด · ขวา = เข้ม
+            {t('control.howToRead')}
           </p>
         </>
       )}

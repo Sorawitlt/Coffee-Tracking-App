@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { parseNumber } from '../features/formUtil'
+import { useT } from '../i18n/I18nProvider'
 
 export interface NumberStepperProps {
   label: string
@@ -29,6 +30,7 @@ export function NumberStepper({
   label, value, onChange, step, min = 0, max, start, required, error, hint, changedFrom,
 }: NumberStepperProps) {
   const id = useId()
+  const t = useT()
   const describedBy = error ? `${id}-error` : changedFrom !== undefined ? `${id}-changed` : hint ? `${id}-hint` : undefined
 
   function bump(direction: 1 | -1) {
@@ -50,7 +52,7 @@ export function NumberStepper({
         {required && <span aria-hidden className="text-red-600"> *</span>}
       </label>
       <div className="flex items-center gap-1.5">
-        <button type="button" className={btn} aria-label={`ลด ${label}`} onClick={() => bump(-1)}>−</button>
+        <button type="button" className={btn} aria-label={t('stepper.decrease', { label })} onClick={() => bump(-1)}>−</button>
         <input
           id={id}
           type="text"
@@ -68,13 +70,13 @@ export function NumberStepper({
               : 'border-stone-300 dark:border-stone-600'
           }`}
         />
-        <button type="button" className={btn} aria-label={`เพิ่ม ${label}`} onClick={() => bump(1)}>+</button>
+        <button type="button" className={btn} aria-label={t('stepper.increase', { label })} onClick={() => bump(1)}>+</button>
       </div>
       {error ? (
         <p id={`${id}-error`} role="alert" className="mt-1 text-sm font-medium text-red-700 dark:text-red-400">{error}</p>
       ) : changedFrom !== undefined ? (
         <p id={`${id}-changed`} className="mt-1 text-sm font-medium text-amber-800 dark:text-amber-300">
-          ▲ เปลี่ยน · ครั้งก่อน {changedFrom}
+          {t('stepper.changed', { prev: changedFrom })}
         </p>
       ) : (
         hint && <p id={`${id}-hint`} className="mt-1 text-sm text-stone-500 dark:text-stone-400">{hint}</p>

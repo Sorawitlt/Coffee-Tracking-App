@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { getBean, getRecipe, useLive, type BrewInput } from '../../db'
 import { getDefaultRecipe } from '../../domain/recipes'
 import { reopenTimer } from '../../domain/timer'
+import type { MessageKey } from '../../i18n'
+import { useT } from '../../i18n/I18nProvider'
 import { formatDuration } from '../format'
 import { BrewForm, type BrewFormPrefill } from '../brew/BrewForm'
 import { BrewResult } from '../brew/BrewResult'
@@ -20,7 +22,7 @@ interface Props {
 }
 
 interface Notice {
-  text: string
+  messageKey: MessageKey
   tone: 'ok' | 'warn'
 }
 
@@ -33,19 +35,20 @@ const noop = () => undefined
  * ฟอร์มบันทึกหลังชงมีส่วนชิม & ให้คะแนน แล้วต่อด้วยหน้าคำแนะนำ "ครั้งหน้าลอง …" (ขั้น 6)
  */
 export default function AssistantPage({ active = true, onGoToBeans }: Props) {
+  const t = useT()
   const [session, setSession] = useState<AssistantSession | undefined>(loadSession)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState<Notice>()
   /** ค่าตั้งที่กรอกไว้ตอนย้อนกลับจากหน้าพร้อมชงมาแก้ไข */
   const [setupPrefill, setSetupPrefill] = useState<BrewFormPrefill>()
   /** บันทึกแล้วมีคำแนะนำ → แสดงหน้า "ครั้งหน้าลอง …" (เซสชันถูกล้างไปแล้วตั้งแต่ตอนบันทึก) */
-  const [result, setResult] = useState<{ brewId: string; message: string }>()
+  const [result, setResult] = useState<{ brewId: string; messageKey: MessageKey }>()
 
   // ข้อความยืนยันหายเองหลังไม่กี่วินาที
   useEffect(() => {
     if (!notice) return
-    const t = setTimeout(() => setNotice(undefined), 4000)
-    return () => clearTimeout(t)
+    const timeout = setTimeout(() => setNotice(undefined), 4000)
+    return () => clearTimeout(timeout)
   }, [notice])
 
   const beanId = session?.input.beanId
@@ -65,7 +68,7 @@ export default function AssistantPage({ active = true, onGoToBeans }: Props) {
     if (session && bean === null) {
       commit(undefined)
       setSaving(false)
-      setNotice({ text: 'เมล็ดที่ใช้ชงถูกลบไปแล้ว — ยกเลิกการชงที่ค้างอยู่', tone: 'warn' })
+      setNotice({ messageKey: 'assistant.beanDeleted', tone: 'warn' })
     }
   }, [session, bean])
 
@@ -99,17 +102,17 @@ export default function AssistantPage({ active = true, onGoToBeans }: Props) {
     commit(undefined)
   }
 
-  function saved(message?: string, adviceBrewId?: string) {
+  function saved(messageKey?: MessageKey, adviceBrewId?: string) {
     setSaving(false)
-    if (!message) return // กดยกเลิกในฟอร์ม → กลับไปหน้าสรุป ผลการชงยังอยู่
+    if (!messageKey) return // กดยกเลิกในฟอร์ม → กลับไปหน้าสรุป ผลการชงยังอยู่
     // ล้างเซสชันทันทีที่บันทึกสำเร็จ — ปิดแอปที่หน้าคำแนะนำแล้วกลับมาต้องไม่เห็นหน้าสรุปให้บันทึกซ้ำ
     commit(undefined)
-    if (adviceBrewId) setResult({ brewId: adviceBrewId, message })
-    else setNotice({ text: message, tone: 'ok' })
+    if (adviceBrewId) setResult({ brewId: adviceBrewId, messageKey })
+    else setNotice({ messageKey, tone: 'ok' })
   }
 
   function closeResult() {
-    if (result) setNotice({ text: result.message, tone: 'ok' })
+    if (result) setNotice({ messageKey: result.messageKey, tone: 'ok' })
     setResult(undefined)
   }
 
@@ -129,13 +132,13 @@ export default function AssistantPage({ active = true, onGoToBeans }: Props) {
               : 'bg-orange-50 text-orange-900 dark:bg-orange-950/40 dark:text-orange-200'
           }`}
         >
-          {notice.tone === 'ok' ? '✓ ' : ''}{notice.text}
+          {notice.tone === 'ok' ? '✓ ' : ''}{t(notice.messageKey)}
         </p>
       )}
 
       {/* key แยกฟอร์มเตรียมชงกับฟอร์มบันทึก — เป็นคอมโพเนนต์เดียวกัน ถ้าไม่แยก React จะใช้ state เดิมต่อ */}
       {!session && result ? (
-        <BrewResult key="result" brewId={result.brewId} message={result.message} onDone={closeResult} />
+        <BrewResult key="result" brewId={result.brewId} messageKey={result.messageKey} onDone={closeResult} />
       ) : !session ? (
         <BrewForm key="setup" mode="start" prefill={setupPrefill} onStart={(input) => void start(input)} onDone={noop} onGoToBeans={onGoToBeans} />
       ) : finished && saving ? (
@@ -144,7 +147,7 @@ export default function AssistantPage({ active = true, onGoToBeans }: Props) {
           mode="new"
           prefill={{
             values: sessionToSaveValues(session, Date.now()),
-            note: `ค่าจากผู้ช่วยชง — เวลาชงจริง ${formatDuration(sessionDurationSec(session, Date.now()))}`,
+            note: t('assistant.prefillNote', { time: formatDuration(sessionDurationSec(session, Date.now())) }),
           }}
           onDone={saved}
           onGoToBeans={onGoToBeans}

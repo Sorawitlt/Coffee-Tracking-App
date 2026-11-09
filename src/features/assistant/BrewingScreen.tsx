@@ -7,6 +7,7 @@ import { formatRatio, ratio } from '../../domain/calc'
 import { METHOD_PROFILES } from '../../domain/methods'
 import { elapsedMs, finishTimer, pauseTimer, resumeTimer, startTimer } from '../../domain/timer'
 import type { Bean } from '../../domain/types'
+import { useT } from '../../i18n/I18nProvider'
 import { formatDuration, formatGrams } from '../format'
 import { METHOD_LABEL } from '../labels'
 import { canVibrate, createCuePlayer } from './cues'
@@ -34,6 +35,7 @@ interface Props {
 
 /** หน้าจับเวลา: ตัวเลขใหญ่ + ขั้นตอนปัจจุบัน/ถัดไป + ปุ่มใหญ่กดมือเดียว */
 export function BrewingScreen({ session, bean, onChange, onCancel, onEdit }: Props) {
+  const t = useT()
   const { input, plan, timer } = session
   const running = timer.status === 'running'
   const started = timer.status !== 'ready'
@@ -102,11 +104,11 @@ export function BrewingScreen({ session, bean, onChange, onCancel, onEdit }: Pro
     onChange({ ...session, timer: pauseTimer(timer, Date.now()) })
   }
   function resume() {
-    const t = Date.now()
+    const at = Date.now()
     player.unlock()
-    lastCueMs.current = elapsedMs(timer, t)
-    setNow(t)
-    onChange({ ...session, timer: resumeTimer(timer, t) })
+    lastCueMs.current = elapsedMs(timer, at)
+    setNow(at)
+    onChange({ ...session, timer: resumeTimer(timer, at) })
   }
   function finish() {
     onChange({ ...session, timer: finishTimer(timer, Date.now()) })
@@ -117,7 +119,7 @@ export function BrewingScreen({ session, bean, onChange, onCancel, onEdit }: Pro
 
   return (
     <section
-      aria-label="ผู้ช่วยชง"
+      aria-label={t('assistant.title')}
       className="space-y-4"
       // เบราว์เซอร์ (โดยเฉพาะ iOS) ปลดล็อกเสียงได้เฉพาะในเหตุการณ์แตะ — เช่น เปิดแอปกลับมาแล้วเซสชันเดินต่อ
       onPointerDownCapture={() => player.unlock()}
@@ -125,29 +127,29 @@ export function BrewingScreen({ session, bean, onChange, onCancel, onEdit }: Pro
       <header className="text-center">
         <h2 className="text-xl font-bold">
           {METHOD_LABEL[input.method]}
-          <span className="font-normal text-stone-600 dark:text-stone-400"> · {bean ? bean.name : 'เมล็ด'}</span>
+          <span className="font-normal text-stone-600 dark:text-stone-400"> · {bean ? bean.name : t('common.bean')}</span>
         </h2>
         <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-          กาแฟ {formatGrams(input.doseG)} g · น้ำ {formatGrams(input.waterG)} g ({formatRatio(r)})
+          {t('assistant.summary', { dose: formatGrams(input.doseG), water: formatGrams(input.waterG), ratio: formatRatio(r) })}
           {input.tempC !== undefined && ` · ${formatGrams(input.tempC)} °C`}
-          {input.grindSetting !== undefined && ` · บด ${formatGrams(input.grindSetting)}`}
+          {input.grindSetting !== undefined && t('assistant.grindShort', { value: formatGrams(input.grindSetting) })}
         </p>
       </header>
 
       <div className="text-center">
         <p
           role="timer"
-          aria-label="เวลาที่ผ่านไป"
+          aria-label={t('assistant.elapsed')}
           className={`font-bold leading-none tabular-nums ${big} ${overTarget ? 'text-amber-700 dark:text-amber-400' : ''}`}
         >
           {formatDuration(Math.floor(elapsedSec))}
         </p>
         <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-          เป้าหมาย {formatDuration(lo)}{hi !== lo && `–${formatDuration(hi)}`}
+          {t('assistant.target', { range: `${formatDuration(lo)}${hi !== lo ? `–${formatDuration(hi)}` : ''}` })}
         </p>
         <div
           role="progressbar"
-          aria-label="ความคืบหน้าเทียบเวลาเป้าหมาย"
+          aria-label={t('assistant.progress')}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.min(100, Math.round((elapsedSec / plan.totalTimeSec) * 100))}
@@ -161,76 +163,76 @@ export function BrewingScreen({ session, bean, onChange, onCancel, onEdit }: Pro
       </div>
 
       {/* ขั้นตอนปัจจุบัน — อ่านออกเสียงให้ผู้ใช้โปรแกรมอ่านหน้าจอเมื่อเปลี่ยนขั้น */}
-      <div role="group" aria-label="ขั้นตอนปัจจุบัน" aria-live="polite" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center dark:border-amber-700 dark:bg-amber-950/40">
+      <div role="group" aria-label={t('assistant.currentStep')} aria-live="polite" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center dark:border-amber-700 dark:bg-amber-950/40">
         {!started ? (
           <>
-            <p className="text-sm font-medium text-stone-700 dark:text-stone-300">พร้อมชง — กดเริ่มเมื่อเริ่มเทน้ำ</p>
-            {plan.steps[0] && <p className="mt-1 text-lg font-semibold">ขั้นแรก: {stepTitle(plan.steps[0])} {stepTarget(plan.steps[0])}</p>}
+            <p className="text-sm font-medium text-stone-700 dark:text-stone-300">{t('assistant.ready')}</p>
+            {plan.steps[0] && <p className="mt-1 text-lg font-semibold">{t('assistant.firstStep', { step: [stepTitle(plan.steps[0], t), stepTarget(plan.steps[0], t)].filter(Boolean).join(' ') })}</p>}
           </>
         ) : current ? (
           <>
             <p className="text-sm font-medium text-stone-700 dark:text-stone-300">
-              ขั้นที่ {currentIndex + 1} / {plan.steps.length}
-              {timer.status === 'paused' && ' · หยุดพัก'}
+              {t('assistant.stepOf', { n: currentIndex + 1, total: plan.steps.length })}
+              {timer.status === 'paused' && t('assistant.pausedSuffix')}
             </p>
-            <p className="mt-1 text-3xl font-bold">{stepTitle(current)}</p>
-            {stepTarget(current) && (
+            <p className="mt-1 text-3xl font-bold">{stepTitle(current, t)}</p>
+            {stepTarget(current, t) && (
               <p className="mt-1 text-4xl font-bold tabular-nums text-amber-900 dark:text-amber-300">
-                {stepTarget(current)}
+                {stepTarget(current, t)}
                 {stepDelta(current) && <span className="ml-2 text-xl font-semibold text-stone-600 dark:text-stone-400">({stepDelta(current)})</span>}
               </p>
             )}
-            {stepHint(current) && <p className="mt-2 text-sm text-stone-700 dark:text-stone-300">{stepHint(current)}</p>}
+            {stepHint(current, t) && <p className="mt-2 text-sm text-stone-700 dark:text-stone-300">{stepHint(current, t)}</p>}
             {left !== undefined && left > 0 && (
               <p className="mt-2 text-sm tabular-nums text-stone-600 dark:text-stone-400">
-                อีก {formatDuration(Math.ceil(left))}{upcoming ? ' ถึงขั้นถัดไป' : ' ถึงเวลาเป้าหมาย'}
+                {t(upcoming ? 'assistant.timeToNextStep' : 'assistant.timeToTarget', { time: formatDuration(Math.ceil(left)) })}
               </p>
             )}
             {overTarget && !upcoming && (
               <p className="mt-2 text-sm font-medium text-amber-800 dark:text-amber-300">
-                ครบเวลาเป้าหมายแล้ว — เมื่อเสร็จกด “เสร็จสิ้น”
+                {t('assistant.overTarget')}
               </p>
             )}
           </>
         ) : (
           <p className="text-lg font-semibold">
-            เตรียมพร้อม — ขั้นแรกในอีก {formatDuration(Math.ceil(untilNext ?? 0))}
+            {t('assistant.getReady', { time: formatDuration(Math.ceil(untilNext ?? 0)) })}
           </p>
         )}
       </div>
 
       {started && upcoming && (
         <p className="text-center text-sm text-stone-700 dark:text-stone-300">
-          ถัดไป <span className="font-semibold tabular-nums">{formatDuration(upcoming.startSec)}</span> · {stepTitle(upcoming)} {stepTarget(upcoming)}
+          {t('assistant.next', { time: formatDuration(upcoming.startSec), step: [stepTitle(upcoming, t), stepTarget(upcoming, t)].filter(Boolean).join(' ') })}
         </p>
       )}
 
       {/* ปุ่มหลัก — ใหญ่ กดมือเดียว */}
       {!started ? (
         <div className="space-y-3">
-          <Button variant="primary" className="h-16 w-full text-xl" onClick={start}>▶ เริ่มจับเวลา</Button>
-          <Button className="w-full" onClick={onEdit}>← แก้ไขค่า</Button>
+          <Button variant="primary" className="h-16 w-full text-xl" onClick={start}>{t('assistant.start')}</Button>
+          <Button className="w-full" onClick={onEdit}>{t('assistant.editValues')}</Button>
         </div>
       ) : (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             {running ? (
-              <Button className="h-16 text-xl" onClick={pause}>⏸ พัก</Button>
+              <Button className="h-16 text-xl" onClick={pause}>{t('assistant.pause')}</Button>
             ) : (
-              <Button variant="primary" className="h-16 text-xl" onClick={resume}>▶ ต่อ</Button>
+              <Button variant="primary" className="h-16 text-xl" onClick={resume}>{t('assistant.resume')}</Button>
             )}
-            <Button variant="primary" className="h-16 text-xl" onClick={finish}>✓ เสร็จสิ้น</Button>
+            <Button variant="primary" className="h-16 text-xl" onClick={finish}>{t('assistant.finish')}</Button>
           </div>
           {!confirmCancel ? (
             <Button variant="ghost" className="w-full text-red-700 dark:text-red-400" onClick={() => setConfirmCancel(true)}>
-              ยกเลิกการชงนี้
+              {t('assistant.cancelBrew')}
             </Button>
           ) : (
-            <div role="alertdialog" aria-label="ยืนยันการยกเลิก" className="space-y-3 rounded-xl border border-red-300 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950">
-              <p className="text-sm font-medium">ยกเลิกการชงนี้? เวลาที่จับไว้จะหายไป (ยังไม่หักน้ำหนักเมล็ด)</p>
+            <div role="alertdialog" aria-label={t('assistant.confirmCancel')} className="space-y-3 rounded-xl border border-red-300 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950">
+              <p className="text-sm font-medium">{t('assistant.cancelWarning')}</p>
               <div className="flex gap-3">
-                <Button className="flex-1" onClick={() => setConfirmCancel(false)}>ชงต่อ</Button>
-                <Button variant="danger" className="flex-1" onClick={onCancel}>ยืนยันยกเลิก</Button>
+                <Button className="flex-1" onClick={() => setConfirmCancel(false)}>{t('assistant.keepBrewing')}</Button>
+                <Button variant="danger" className="flex-1" onClick={onCancel}>{t('assistant.confirmCancelBtn')}</Button>
               </div>
             </div>
           )}
@@ -239,7 +241,7 @@ export function BrewingScreen({ session, bean, onChange, onCancel, onEdit }: Pro
 
       {/* ตารางขั้นตอนทั้งหมด */}
       {plan.steps.length > 0 && (
-        <ol aria-label="ขั้นตอนทั้งหมด" className="divide-y divide-stone-200 rounded-2xl border border-stone-200 bg-white dark:divide-stone-700 dark:border-stone-700 dark:bg-stone-800">
+        <ol aria-label={t('assistant.allSteps')} className="divide-y divide-stone-200 rounded-2xl border border-stone-200 bg-white dark:divide-stone-700 dark:border-stone-700 dark:bg-stone-800">
           {plan.steps.map((s, i) => {
             const done = started && i < currentIndex
             const isCurrent = started && i === currentIndex
@@ -250,8 +252,8 @@ export function BrewingScreen({ session, bean, onChange, onCancel, onEdit }: Pro
                 className={`flex items-baseline gap-3 px-3 py-2 text-sm ${isCurrent ? 'bg-amber-100 font-semibold dark:bg-amber-950/60' : ''} ${done ? 'text-stone-400 line-through dark:text-stone-500' : ''}`}
               >
                 <span className="w-12 shrink-0 tabular-nums">{formatDuration(s.startSec)}</span>
-                <span className="flex-1">{stepTitle(s)}</span>
-                <span className="tabular-nums">{stepTarget(s) ?? ''}</span>
+                <span className="flex-1">{stepTitle(s, t)}</span>
+                <span className="tabular-nums">{stepTarget(s, t) ?? ''}</span>
               </li>
             )
           })}
@@ -262,23 +264,23 @@ export function BrewingScreen({ session, bean, onChange, onCancel, onEdit }: Pro
       <div className="space-y-2 text-sm">
         <div className="flex flex-wrap gap-2">
           <Toggle pressed={prefs.sound} onClick={() => updatePrefs({ ...prefs, sound: !prefs.sound })}>
-            {prefs.sound ? '🔔 เสียง: เปิด' : '🔕 เสียง: ปิด'}
+            {t(prefs.sound ? 'assistant.soundOn' : 'assistant.soundOff')}
           </Toggle>
           {canVibrate() && (
             <Toggle pressed={prefs.vibrate} onClick={() => updatePrefs({ ...prefs, vibrate: !prefs.vibrate })}>
-              {prefs.vibrate ? '📳 สั่น: เปิด' : '📴 สั่น: ปิด'}
+              {t(prefs.vibrate ? 'assistant.vibrateOn' : 'assistant.vibrateOff')}
             </Toggle>
           )}
         </div>
         <p role="status" className="text-stone-600 dark:text-stone-400">
           {!keepAwake
-            ? 'การชงแบบแช่นานไม่กันหน้าจอดับ — แอปไม่เตือนตอนปิดจอ กลับมาเปิดแอปเมื่อถึงเวลา เวลายังนับต่อให้ถูกต้อง'
+            ? t('assistant.wake.long')
             : wake === 'active'
-              ? '☀️ หน้าจอจะไม่ดับระหว่างชง'
+              ? t('assistant.wake.active')
               : wake === 'unsupported'
-                ? 'เครื่องนี้ไม่รองรับการกันจอดับ — ตั้งเวลาล็อกหน้าจอให้นานขึ้นก่อนชง'
+                ? t('assistant.wake.unsupported')
                 : wake === 'failed'
-                  ? 'เปิดการกันจอดับไม่ได้ (อาจอยู่ในโหมดประหยัดแบตเตอรี่) — ตั้งเวลาล็อกหน้าจอให้นานขึ้นก่อนชง'
+                  ? t('assistant.wake.failed')
                   : ''}
         </p>
       </div>

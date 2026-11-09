@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { db, getSettings, useLive } from '../../db'
 import { backupReminder, type BackupReminder } from '../../domain/backup'
 import { Button } from '../../components/Button'
+import { useT } from '../../i18n/I18nProvider'
 import { daysAgoText } from './backupText'
 import { isSnoozed, snoozeReminder } from './reminder'
 
@@ -36,25 +37,26 @@ interface Props {
 
 /** แบนเนอร์เตือนสำรองข้อมูลทุก 2 สัปดาห์ — ไม่แสดงเมื่อยังไม่มีข้อมูลหรือกด "ไว้ทีหลัง" อยู่ */
 export function BackupBanner({ reminder, onOpen }: Props) {
+  const t = useT()
   const [snoozed, setSnoozed] = useState(() => isSnoozed())
   if (!reminder?.due || snoozed) return null
 
   return (
     <section
-      aria-label="เตือนสำรองข้อมูล"
+      aria-label={t('banner.aria')}
       className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-stone-900 dark:border-amber-700 dark:bg-amber-950 dark:text-stone-100"
     >
       <p className="font-semibold">
-        {reminder.neverBackedUp ? 'ยังไม่เคยสำรองข้อมูล' : 'ถึงเวลาสำรองข้อมูลแล้ว'}
+        {t(reminder.neverBackedUp ? 'banner.never' : 'banner.due')}
       </p>
       <p className="mt-1 text-sm">
         {reminder.neverBackedUp
-          ? `เริ่มบันทึกมา ${daysAgoText(reminder.daysSince ?? 0)}`
-          : `สำรองล่าสุด ${daysAgoText(reminder.daysSince ?? 0)}`}
-        {' — ข้อมูลอยู่ในเครื่องนี้เท่านั้น ถ้าเบราว์เซอร์ล้างข้อมูลหรือเปลี่ยนเครื่อง ข้อมูลจะหายถ้าไม่มีไฟล์สำรอง'}
+          ? t('banner.sinceStart', { when: daysAgoText(reminder.daysSince ?? 0, t) })
+          : t('banner.sinceBackup', { when: daysAgoText(reminder.daysSince ?? 0, t) })}
+        {t('banner.warning')}
       </p>
       <div className="mt-3 flex gap-2">
-        <Button variant="primary" onClick={onOpen}>สำรองเลย</Button>
+        <Button variant="primary" onClick={onOpen}>{t('banner.now')}</Button>
         <Button
           variant="ghost"
           onClick={() => {
@@ -62,7 +64,7 @@ export function BackupBanner({ reminder, onOpen }: Props) {
             setSnoozed(true)
           }}
         >
-          ไว้ทีหลัง
+          {t('banner.later')}
         </Button>
       </div>
     </section>

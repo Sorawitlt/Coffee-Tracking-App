@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Bean, Brew } from '../../domain/types'
 import { ratingSeries, type RatingPoint } from '../../domain/insights'
+import { useI18n } from '../../i18n/I18nProvider'
 import { formatDateTime } from '../format'
 import { METHOD_LABEL } from '../labels'
 import { ChartCard, DataTable, EmptyChart, TooltipBox } from './chartParts'
 
 const DAY_MS = 86_400_000
-const shortDate = (t: number) =>
-  new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short' }).format(new Date(t))
+const shortDate = (ms: number, locale: string) =>
+  new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(new Date(ms))
 
 interface Props {
   brews: readonly Brew[]
@@ -17,33 +18,34 @@ interface Props {
 
 /** กราฟคะแนนตามเวลา — เส้นเดียว (คะแนน 1–5) แกนเดียว; เลือกเมล็ด/วิธีชงที่ตัวกรองด้านบนเพื่อดูแนวโน้มของสูตรเดียว */
 export function RatingChart({ brews, beans }: Props) {
+  const { t, locale } = useI18n()
   const [table, setTable] = useState(false)
   const points = ratingSeries(brews)
   const brewById = new Map(brews.map((b) => [b.id, b]))
   const nameOf = (p: RatingPoint) => {
     const b = brewById.get(p.id)
-    return b ? `${METHOD_LABEL[b.method]} · ${beans.get(b.beanId)?.name ?? 'เมล็ดที่ลบแล้ว'}` : ''
+    return b ? `${METHOD_LABEL[b.method]} · ${beans.get(b.beanId)?.name ?? t('common.deletedBean')}` : ''
   }
 
   return (
-    <ChartCard title="คะแนนตามเวลา" subtitle="ดาวที่ให้แต่ละครั้ง เรียงตามวันที่ชง" tableView={table} onToggleTable={() => setTable((v) => !v)}>
+    <ChartCard title={t('rating.title')} subtitle={t('rating.subtitle')} tableView={table} onToggleTable={() => setTable((v) => !v)}>
       {points.length === 0 ? (
-        <EmptyChart>ยังไม่มีการชงที่ให้คะแนนในตัวกรองนี้ — ให้ดาวตอนบันทึกการชงแล้วกราฟจะขึ้นที่นี่</EmptyChart>
+        <EmptyChart>{t('rating.empty')}</EmptyChart>
       ) : table ? (
         <DataTable
-          caption="คะแนนของแต่ละครั้งที่ชง"
-          headers={['วันที่ชง', 'การชง', 'คะแนน']}
-          rows={[...points].reverse().map((p) => [formatDateTime(p.brewedAt), nameOf(p), `${p.rating} ดาว`])}
+          caption={t('rating.tableCaption')}
+          headers={[t('table.brewedAt'), t('table.brew'), t('table.rating')]}
+          rows={[...points].reverse().map((p) => [formatDateTime(p.brewedAt, new Date(), locale), nameOf(p), t('common.stars', { n: p.rating })])}
         />
       ) : (
-        <div role="img" aria-label={`กราฟเส้นคะแนน ${points.length} ครั้ง ล่าสุด ${points[points.length - 1].rating} ดาว — ดูรายละเอียดทั้งหมดในมุมมองตาราง`}>
+        <div role="img" aria-label={t('rating.chartAria', { n: points.length, stars: t('common.stars', { n: points[points.length - 1].rating }) })}>
           <ResponsiveContainer width="100%" height={220} initialDimension={{ width: 320, height: 220 }}>
             <LineChart data={points} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--viz-grid)" />
               <XAxis
                 dataKey="t" type="number" scale="time"
                 domain={([min, max]: readonly [number, number]): [number, number] => (min === max ? [min - DAY_MS, max + DAY_MS] : [min, max])}
-                tickFormatter={shortDate} tickCount={4} minTickGap={24}
+                tickFormatter={(ms: number) => shortDate(ms, locale)} tickCount={4} minTickGap={24}
                 stroke="var(--viz-axis)" tick={{ fill: 'var(--viz-text)', fontSize: 12 }} tickLine={false}
               />
               <YAxis
@@ -55,7 +57,7 @@ export function RatingChart({ brews, beans }: Props) {
                 content={({ active, payload }) => {
                   const p = active ? (payload?.[0]?.payload as RatingPoint | undefined) : undefined
                   if (!p) return null
-                  return <TooltipBox title={`${formatDateTime(p.brewedAt)} · ${nameOf(p)}`} rows={[{ value: `${p.rating} ดาว`, label: 'คะแนน' }]} />
+                  return <TooltipBox title={`${formatDateTime(p.brewedAt, new Date(), locale)} · ${nameOf(p)}`} rows={[{ value: t('common.stars', { n: p.rating }), label: t('table.rating') }]} />
                 }}
               />
               <Line

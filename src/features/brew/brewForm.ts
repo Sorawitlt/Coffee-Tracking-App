@@ -1,6 +1,7 @@
 import type { BrewDraft, DialValues } from '../../domain/brewDraft'
 import type { Brew, Method } from '../../domain/types'
 import type { BrewInput } from '../../db/brews'
+import type { MessageKey } from '../../i18n'
 import { numberToText, optionalText, parseNumber } from '../formUtil'
 
 /**
@@ -27,7 +28,8 @@ export interface BrewFormValues {
   recipeId: string
 }
 
-export type BrewFormErrors = Partial<Record<keyof BrewFormValues, string>>
+/** ข้อผิดพลาดต่อช่อง เก็บเป็นคีย์ข้อความ — แปลตอนแสดง */
+export type BrewFormErrors = Partial<Record<keyof BrewFormValues, MessageKey>>
 
 export type BrewFormResult = { ok: true; value: BrewInput } | { ok: false; errors: BrewFormErrors }
 
@@ -104,34 +106,34 @@ const FUTURE_TOLERANCE_MS = 5 * 60_000
 export function validateBrewForm(v: BrewFormValues, { now = new Date() }: { now?: Date } = {}): BrewFormResult {
   const errors: BrewFormErrors = {}
 
-  if (!v.beanId) errors.beanId = 'กรุณาเลือกเมล็ด'
+  if (!v.beanId) errors.beanId = 'brew.val.bean'
 
   const doseG = parseNumber(v.doseG)
-  if (doseG === undefined) errors.doseG = 'กรุณากรอกปริมาณกาแฟ (กรัม)'
-  else if (!(doseG > 0)) errors.doseG = 'ปริมาณกาแฟต้องมากกว่า 0'
+  if (doseG === undefined) errors.doseG = 'brew.val.doseRequired'
+  else if (!(doseG > 0)) errors.doseG = 'brew.val.dosePositive'
 
   const waterG = parseNumber(v.waterG)
-  if (waterG === undefined) errors.waterG = 'กรุณากรอกปริมาณน้ำ (กรัม)'
-  else if (!(waterG > 0)) errors.waterG = 'ปริมาณน้ำต้องมากกว่า 0'
+  if (waterG === undefined) errors.waterG = 'brew.val.waterRequired'
+  else if (!(waterG > 0)) errors.waterG = 'brew.val.waterPositive'
 
   const grindSetting = parseNumber(v.grindSetting)
-  if (grindSetting !== undefined && !(grindSetting >= 0)) errors.grindSetting = 'เบอร์บดต้องเป็นตัวเลข 0 ขึ้นไป'
+  if (grindSetting !== undefined && !(grindSetting >= 0)) errors.grindSetting = 'brew.val.grind'
 
   const tempC = parseNumber(v.tempC)
-  if (tempC !== undefined && !(tempC >= 0 && tempC <= 100)) errors.tempC = 'อุณหภูมิต้องอยู่ระหว่าง 0–100 °C'
+  if (tempC !== undefined && !(tempC >= 0 && tempC <= 100)) errors.tempC = 'brew.val.temp'
 
   const totalTimeSec = parseNumber(v.totalTimeSec)
-  if (totalTimeSec !== undefined && !(totalTimeSec > 0)) errors.totalTimeSec = 'เวลาต้องมากกว่า 0 วินาที'
+  if (totalTimeSec !== undefined && !(totalTimeSec > 0)) errors.totalTimeSec = 'brew.val.time'
 
   const yieldG = parseNumber(v.yieldG)
-  if (yieldG !== undefined && !(yieldG > 0)) errors.yieldG = 'น้ำหนักเครื่องดื่มต้องมากกว่า 0'
+  if (yieldG !== undefined && !(yieldG > 0)) errors.yieldG = 'brew.val.yield'
 
   const tds = parseNumber(v.tds)
-  if (tds !== undefined && !(tds > 0 && tds <= 30)) errors.tds = 'TDS ต้องมากกว่า 0 และไม่เกิน 30 %'
+  if (tds !== undefined && !(tds > 0 && tds <= 30)) errors.tds = 'brew.val.tds'
 
   const at = fromDateTimeLocal(v.brewedAt)
-  if (!at) errors.brewedAt = 'วันและเวลาไม่ถูกต้อง'
-  else if (at.getTime() > now.getTime() + FUTURE_TOLERANCE_MS) errors.brewedAt = 'เวลาที่ชงต้องไม่เกินปัจจุบัน'
+  if (!at) errors.brewedAt = 'brew.val.dateInvalid'
+  else if (at.getTime() > now.getTime() + FUTURE_TOLERANCE_MS) errors.brewedAt = 'brew.val.dateFuture'
 
   if (Object.keys(errors).length > 0) return { ok: false, errors }
 

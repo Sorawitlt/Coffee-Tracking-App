@@ -21,7 +21,7 @@ export function formatDuration(totalSec: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`
 }
 
-/** วันเวลาแบบสั้นภาษาไทย เช่น "9 พ.ย. 08:30" (แสดงปีเฉพาะเมื่อไม่ใช่ปีนี้) */
+/** วันเวลาแบบสั้นตาม locale เช่น "9 พ.ย. 08:30" (th-TH) / "9 Nov, 08:30" (en-GB) — แสดงปีเฉพาะเมื่อไม่ใช่ปีนี้ */
 export function formatDateTime(iso: string, now: Date = new Date(), locale = 'th-TH'): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'

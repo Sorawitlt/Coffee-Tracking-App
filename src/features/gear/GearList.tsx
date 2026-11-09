@@ -1,6 +1,7 @@
 import { listGear, useLive } from '../../db'
 import { Button } from '../../components/Button'
-import { GEAR_TYPE_ICON, GEAR_TYPE_LABEL } from '../labels'
+import { useT } from '../../i18n/I18nProvider'
+import { GEAR_TYPE_ICON, GEAR_TYPE_KEY } from '../labels'
 
 interface Props {
   onAdd: () => void
@@ -8,20 +9,21 @@ interface Props {
 }
 
 export function GearList({ onAdd, onOpen }: Props) {
+  const t = useT()
   const gear = useLive(() => listGear(), [])
 
   return (
-    <section aria-label="อุปกรณ์" className="space-y-3">
+    <section aria-label={t('gear.list.title')} className="space-y-3">
       <Button variant="primary" className="w-full" onClick={onAdd}>
-        + เพิ่มอุปกรณ์
+        {t('gear.list.add')}
       </Button>
 
       {gear === undefined ? null : gear.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-300 p-8 text-center dark:border-stone-600">
           <p className="text-4xl" aria-hidden>⚙️</p>
-          <p className="mt-2 font-medium">ยังไม่มีอุปกรณ์</p>
+          <p className="mt-2 font-medium">{t('gear.list.empty')}</p>
           <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-            เพิ่มเครื่องบด อุปกรณ์ชง กาต้มน้ำ ตาชั่ง เพื่อเลือกตอนบันทึกการชง
+            {t('gear.list.emptyHint')}
           </p>
         </div>
       ) : (
@@ -37,8 +39,8 @@ export function GearList({ onAdd, onOpen }: Props) {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{g.name}</span>
                   <span className="block text-sm text-stone-600 dark:text-stone-400">
-                    {GEAR_TYPE_LABEL[g.type]}
-                    {g.grindScale && ` · เบอร์บด ${g.grindScale.min}–${g.grindScale.max} (ขั้นละ ${g.grindScale.step})`}
+                    {t(GEAR_TYPE_KEY[g.type])}
+                    {g.grindScale && t('gear.list.scale', { min: g.grindScale.min, max: g.grindScale.max, step: g.grindScale.step })}
                   </span>
                 </span>
               </button>

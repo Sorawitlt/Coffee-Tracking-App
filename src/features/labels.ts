@@ -1,34 +1,35 @@
 import type { FlavorGroup, FlavorTag } from '../domain/flavors'
 import type { BeanProcess, GearType, Method, RoastLevel, StepAction } from '../domain/types'
+import type { MessageKey } from '../i18n'
 
 /**
- * ป้ายข้อความภาษาไทยของตัวเลือกต่าง ๆ
- * (รวมไว้ที่เดียวเพื่อย้ายเข้า i18n ในขั้น 9 ได้ง่าย)
+ * ตัวเลือกต่าง ๆ → "คีย์ข้อความ" i18n (แปลตอนแสดงด้วย `t(...)`)
+ * รวมไว้ที่เดียว: เพิ่มตัวเลือกใหม่แล้ว TypeScript บังคับให้ใส่คีย์ครบ
  */
 
-export const ROAST_LEVEL_LABEL: Record<RoastLevel, string> = {
-  light: 'คั่วอ่อน',
-  mediumLight: 'คั่วอ่อน-กลาง',
-  medium: 'คั่วกลาง',
-  mediumDark: 'คั่วกลาง-เข้ม',
-  dark: 'คั่วเข้ม',
+export const ROAST_LEVEL_KEY: Record<RoastLevel, MessageKey> = {
+  light: 'label.roast.light',
+  mediumLight: 'label.roast.mediumLight',
+  medium: 'label.roast.medium',
+  mediumDark: 'label.roast.mediumDark',
+  dark: 'label.roast.dark',
 }
 
-export const PROCESS_LABEL: Record<BeanProcess, string> = {
-  washed: 'Washed',
-  natural: 'Natural',
-  honey: 'Honey',
-  anaerobic: 'Anaerobic',
-  other: 'อื่น ๆ',
+export const PROCESS_KEY: Record<BeanProcess, MessageKey> = {
+  washed: 'label.process.washed',
+  natural: 'label.process.natural',
+  honey: 'label.process.honey',
+  anaerobic: 'label.process.anaerobic',
+  other: 'label.process.other',
 }
 
-export const GEAR_TYPE_LABEL: Record<GearType, string> = {
-  grinder: 'เครื่องบด',
-  brewer: 'อุปกรณ์ชง',
-  kettle: 'กาต้มน้ำ',
-  scale: 'ตาชั่ง',
-  filter: 'ฟิลเตอร์',
-  other: 'อื่น ๆ',
+export const GEAR_TYPE_KEY: Record<GearType, MessageKey> = {
+  grinder: 'label.gear.grinder',
+  brewer: 'label.gear.brewer',
+  kettle: 'label.gear.kettle',
+  scale: 'label.gear.scale',
+  filter: 'label.gear.filter',
+  other: 'label.gear.other',
 }
 
 export const GEAR_TYPE_ICON: Record<GearType, string> = {
@@ -55,96 +56,96 @@ export const METHOD_LABEL: Record<Method, string> = {
 }
 
 /** ชื่อขั้นตอนในผู้ช่วยชง (สูตรผู้ใช้ที่มี `label` ข้อความอิสระจะใช้ label แทน) */
-export const STEP_ACTION_LABEL: Record<StepAction, string> = {
-  bloom: 'บลูม',
-  pour: 'เทน้ำ',
-  stir: 'คน',
-  swirl: 'หมุนเบา ๆ (Swirl)',
-  steep: 'แช่ / รอ',
-  press: 'กดลง',
-  extract: 'สกัดช็อต',
-  drawdown: 'รอน้ำหยดหมด',
-  heat: 'ตั้งเตา',
-  removeFromHeat: 'ยกลงจากเตา',
-  filter: 'กรองแยกกาก',
-  custom: 'ขั้นตอน',
+export const STEP_ACTION_KEY: Record<StepAction, MessageKey> = {
+  bloom: 'label.step.bloom',
+  pour: 'label.step.pour',
+  stir: 'label.step.stir',
+  swirl: 'label.step.swirl',
+  steep: 'label.step.steep',
+  press: 'label.step.press',
+  extract: 'label.step.extract',
+  drawdown: 'label.step.drawdown',
+  heat: 'label.step.heat',
+  removeFromHeat: 'label.step.removeFromHeat',
+  filter: 'label.step.filter',
+  custom: 'label.step.custom',
 }
 
 /** คำแนะนำสั้น ๆ ใต้ชื่อขั้นตอน */
-export const STEP_ACTION_HINT: Record<StepAction, string> = {
-  bloom: 'เทน้ำเบา ๆ ให้ผงชุ่มทั่ว แล้วรอให้ก๊าซออก',
-  pour: 'เทเป็นวงกลมช้า ๆ จากกลางออกนอก',
-  stir: 'คนเบา ๆ ให้ผงกับน้ำเข้ากันทั่ว',
-  swirl: 'หมุนอุปกรณ์เบา ๆ ให้ผงเรียบเสมอกัน',
-  steep: 'วางทิ้งไว้ ไม่ต้องทำอะไร',
-  press: 'กดลงช้า ๆ ให้สม่ำเสมอ',
-  extract: 'เปิดปั๊มพร้อมจับเวลา หยุดเมื่อน้ำหนักช็อตถึงเป้า',
-  drawdown: 'รอน้ำไหลผ่านจนหมด แล้วกด “เสร็จสิ้น”',
-  heat: 'ตั้งบนไฟกลาง-อ่อน',
-  removeFromHeat: 'ยกลงเมื่อกาแฟเริ่มมีเสียงฟู่ แช่ฐานในน้ำเย็นเพื่อหยุดสกัด',
-  filter: 'กรองแยกกากออกจากน้ำกาแฟ',
-  custom: '',
+export const STEP_ACTION_HINT_KEY: Record<StepAction, MessageKey> = {
+  bloom: 'label.stepHint.bloom',
+  pour: 'label.stepHint.pour',
+  stir: 'label.stepHint.stir',
+  swirl: 'label.stepHint.swirl',
+  steep: 'label.stepHint.steep',
+  press: 'label.stepHint.press',
+  extract: 'label.stepHint.extract',
+  drawdown: 'label.stepHint.drawdown',
+  heat: 'label.stepHint.heat',
+  removeFromHeat: 'label.stepHint.removeFromHeat',
+  filter: 'label.stepHint.filter',
+  custom: 'label.stepHint.custom',
 }
 
 // ---------- ผลชิม (ขั้น 6) ----------
 
 /** สมดุลรสชาติ −2..+2 (เรียงจากซ้ายไปขวา) */
 export const BALANCE_OPTIONS = [
-  { value: -2, label: 'เปรี้ยวมาก' },
-  { value: -1, label: 'เปรี้ยว' },
-  { value: 0, label: 'สมดุล' },
-  { value: 1, label: 'ขม' },
-  { value: 2, label: 'ขมมาก' },
-] as const
+  { value: -2, labelKey: 'label.balance.verySour' },
+  { value: -1, labelKey: 'label.balance.sour' },
+  { value: 0, labelKey: 'label.balance.balanced' },
+  { value: 1, labelKey: 'label.balance.bitter' },
+  { value: 2, labelKey: 'label.balance.veryBitter' },
+] as const satisfies readonly { value: number; labelKey: MessageKey }[]
 
 /** ความเข้ม/บอดี้ −2..+2 */
 export const BODY_OPTIONS = [
-  { value: -2, label: 'บางมาก' },
-  { value: -1, label: 'บาง' },
-  { value: 0, label: 'พอดี' },
-  { value: 1, label: 'หนัก' },
-  { value: 2, label: 'หนักมาก' },
-] as const
+  { value: -2, labelKey: 'label.body.veryThin' },
+  { value: -1, labelKey: 'label.body.thin' },
+  { value: 0, labelKey: 'label.body.ok' },
+  { value: 1, labelKey: 'label.body.heavy' },
+  { value: 2, labelKey: 'label.body.veryHeavy' },
+] as const satisfies readonly { value: number; labelKey: MessageKey }[]
 
 /** ความหวาน 0..4 */
 export const SWEETNESS_OPTIONS = [
-  { value: 0, label: 'ไม่หวาน' },
-  { value: 1, label: 'น้อย' },
-  { value: 2, label: 'ปานกลาง' },
-  { value: 3, label: 'หวาน' },
-  { value: 4, label: 'หวานมาก' },
-] as const
+  { value: 0, labelKey: 'label.sweet.none' },
+  { value: 1, labelKey: 'label.sweet.low' },
+  { value: 2, labelKey: 'label.sweet.medium' },
+  { value: 3, labelKey: 'label.sweet.sweet' },
+  { value: 4, labelKey: 'label.sweet.verySweet' },
+] as const satisfies readonly { value: number; labelKey: MessageKey }[]
 
-export const FLAVOR_GROUP_LABEL: Record<FlavorGroup, string> = {
-  fruity: 'ผลไม้',
-  floral: 'ดอกไม้ / ชา',
-  sweet: 'หวาน',
-  nutty: 'ถั่ว / ช็อกโกแลต',
-  spice: 'เครื่องเทศ',
-  roasted: 'กลิ่นคั่ว',
-  other: 'อื่น ๆ',
+export const FLAVOR_GROUP_KEY: Record<FlavorGroup, MessageKey> = {
+  fruity: 'label.flavorGroup.fruity',
+  floral: 'label.flavorGroup.floral',
+  sweet: 'label.flavorGroup.sweet',
+  nutty: 'label.flavorGroup.nutty',
+  spice: 'label.flavorGroup.spice',
+  roasted: 'label.flavorGroup.roasted',
+  other: 'label.flavorGroup.other',
 }
 
-export const FLAVOR_TAG_LABEL: Record<FlavorTag, string> = {
-  berry: 'เบอร์รี่',
-  citrus: 'ส้ม / ซิตรัส',
-  stoneFruit: 'พีช / ลูกพลัม',
-  tropical: 'ผลไม้เขตร้อน',
-  driedFruit: 'ผลไม้แห้ง',
-  floral: 'ดอกไม้',
-  tea: 'ชา',
-  honey: 'น้ำผึ้ง',
-  caramel: 'คาราเมล',
-  brownSugar: 'น้ำตาลทรายแดง',
-  vanilla: 'วานิลลา',
-  nutty: 'ถั่ว',
-  chocolate: 'ช็อกโกแลต',
-  spice: 'เครื่องเทศ',
-  toasty: 'ขนมปังปิ้ง',
-  smoky: 'ควัน',
-  burnt: 'ไหม้',
-  woody: 'ไม้',
-  earthy: 'ดิน',
-  fermented: 'หมัก / แอลกอฮอล์',
-  vegetal: 'หญ้า / เขียว',
+export const FLAVOR_TAG_KEY: Record<FlavorTag, MessageKey> = {
+  berry: 'label.flavor.berry',
+  citrus: 'label.flavor.citrus',
+  stoneFruit: 'label.flavor.stoneFruit',
+  tropical: 'label.flavor.tropical',
+  driedFruit: 'label.flavor.driedFruit',
+  floral: 'label.flavor.floral',
+  tea: 'label.flavor.tea',
+  honey: 'label.flavor.honey',
+  caramel: 'label.flavor.caramel',
+  brownSugar: 'label.flavor.brownSugar',
+  vanilla: 'label.flavor.vanilla',
+  nutty: 'label.flavor.nutty',
+  chocolate: 'label.flavor.chocolate',
+  spice: 'label.flavor.spice',
+  toasty: 'label.flavor.toasty',
+  smoky: 'label.flavor.smoky',
+  burnt: 'label.flavor.burnt',
+  woody: 'label.flavor.woody',
+  earthy: 'label.flavor.earthy',
+  fermented: 'label.flavor.fermented',
+  vegetal: 'label.flavor.vegetal',
 }

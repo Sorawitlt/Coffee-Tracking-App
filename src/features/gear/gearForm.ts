@@ -1,6 +1,7 @@
 import { isValidGrindScale } from '../../domain/inventory'
 import type { Gear, GearType } from '../../domain/types'
 import type { GearInput } from '../../db/gear'
+import type { MessageKey } from '../../i18n'
 import { numberToText, optionalText, parseNumber } from '../formUtil'
 
 /** ตรรกะฟอร์มอุปกรณ์ (Pure TS) */
@@ -15,7 +16,8 @@ export interface GearFormValues {
   scaleStep: string
 }
 
-export type GearFormErrors = Partial<Record<keyof GearFormValues, string>>
+/** ข้อผิดพลาดต่อช่อง เก็บเป็นคีย์ข้อความ — แปลตอนแสดง */
+export type GearFormErrors = Partial<Record<keyof GearFormValues, MessageKey>>
 
 export type GearFormResult = { ok: true; value: GearInput } | { ok: false; errors: GearFormErrors }
 
@@ -38,7 +40,7 @@ export function validateGearForm(v: GearFormValues): GearFormResult {
   const errors: GearFormErrors = {}
 
   const name = v.name.trim()
-  if (!name) errors.name = 'กรุณากรอกชื่ออุปกรณ์'
+  if (!name) errors.name = 'gear.val.name'
 
   let grindScale: GearInput['grindScale']
   if (v.type === 'grinder') {
@@ -48,13 +50,13 @@ export function validateGearForm(v: GearFormValues): GearFormResult {
     const filled = [min, max, step].filter((n) => n !== undefined).length
     if (filled > 0) {
       // กรอกบางช่อง = ต้องกรอกครบทั้ง 3
-      if (min === undefined) errors.scaleMin = 'กรอกเลขต่ำสุด'
-      if (max === undefined) errors.scaleMax = 'กรอกเลขสูงสุด'
-      if (step === undefined) errors.scaleStep = 'กรอกขั้นละเท่าไร'
+      if (min === undefined) errors.scaleMin = 'gear.val.minRequired'
+      if (max === undefined) errors.scaleMax = 'gear.val.maxRequired'
+      if (step === undefined) errors.scaleStep = 'gear.val.stepRequired'
       if (filled === 3) {
         if (isValidGrindScale({ min: min!, max: max!, step: step! })) grindScale = { min: min!, max: max!, step: step! }
-        else if (!(min! < max!)) errors.scaleMax = 'เลขสูงสุดต้องมากกว่าเลขต่ำสุด'
-        else errors.scaleStep = 'ขั้นต้องมากกว่า 0 และไม่เกินช่วงทั้งหมด'
+        else if (!(min! < max!)) errors.scaleMax = 'gear.val.maxGreater'
+        else errors.scaleStep = 'gear.val.stepRange'
       }
     }
   }
