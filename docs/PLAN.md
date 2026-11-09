@@ -1,7 +1,7 @@
 # Brew Log — แผนออกแบบแอปบันทึกและช่วยชงกาแฟ
 
 > เอกสารแผนหลัก (Master Plan) ใช้อ้างอิงทุกขั้นตอนการพัฒนา
-> สถานะ: v1.5 · อัปเดต 2026-11-09 (ขั้น 10: Dark mode, Accessibility, ออฟไลน์, Lighthouse)
+> สถานะ: v1.6 · อัปเดต 2026-11-09 (ขั้น 11: Deploy GitHub Pages + คู่มือผู้ใช้ — ครบ Phase 1)
 
 ---
 
@@ -275,6 +275,16 @@ Settings { language, units, theme, lastBackupAt, defaultMethod }
 - หมายเหตุ: Lighthouse ตั้งแต่ v12 **ไม่มีหมวด PWA แล้ว** เกณฑ์ "PWA ≥ 90" ในตารางจึงแทนด้วยเช็กลิสต์ติดตั้งได้ + ออฟไลน์ใน `npm run audit` (ต้องผ่าน 100%) · ตรวจเองบนเครื่องจริงยังแนะนำ: iOS Safari "Add to Home Screen" และ VoiceOver/TalkBack อ่านหน้าชงได้ครบ
 - ยังไม่ทำ (นอกขอบเขตขั้น 10): หน้า "ตั้งค่า" รวม (ธีม/ภาษา/หน่วย) — ตอนนี้ธีมและภาษาเป็นปุ่มที่หัวแอป, หน่วย oz/°F ยังไม่มี UI · ธีมสีอื่นนอกจากสว่าง/มืด
 
+**กติกาที่ล็อกไว้ในขั้น 11** (โค้ด: `.github/workflows/deploy.yml` · `vite.config.ts` · `docs/USER_GUIDE*.md`)
+- **ลิงก์ใช้งานจริง:** https://sorawitlt.github.io/Coffee-Tracking-App/ (path ตัวพิมพ์ใหญ่-เล็กต้องตรงชื่อ repo)
+- **Deploy อัตโนมัติ** เมื่อ push เข้า *default branch* ของ repo (ไม่ผูกชื่อ `main` — ใช้กับ fork/repo ใหม่ได้ทันที) หรือกดรันเองที่ Actions → "Deploy to GitHub Pages" · ใช้ GitHub Actions + `actions/deploy-pages` (ไม่ใช้ branch `gh-pages`)
+- **ด่านก่อนขึ้นเว็บ:** typecheck + test + build + `npm run audit` (Lighthouse/axe/ออฟไลน์) บน build ที่ใช้ base path จริง — ไม่ผ่านไม่ deploy
+- **Base path มาจาก GitHub เอง** (`actions/configure-pages` → `base_path`) ส่งเข้า `BASE_PATH` ของ Vite → ย้าย repo/เปลี่ยนชื่อ/ใช้ Custom domain ได้โดยไม่ต้องแก้โค้ด · build ในเครื่องไม่ตั้ง = `/`
+- **ไม่ต้องมี `404.html`/SPA fallback** เพราะแอปไม่มี URL route (เปลี่ยนหน้าด้วย state) · Service worker `autoUpdate` → ผู้ใช้ได้เวอร์ชันใหม่เมื่อเปิดแอปขณะออนไลน์
+- **ตั้งค่าครั้งเดียวโดยเจ้าของ repo:** Settings → Pages → Source = **GitHub Actions** (GITHUB_TOKEN เปิด Pages เองไม่ได้) · environment `github-pages` อนุญาตเฉพาะ default branch โดยค่าเริ่มต้น
+- **คู่มือผู้ใช้:** `docs/USER_GUIDE.md` (ไทย) · `docs/USER_GUIDE.en.md` (English) — อ้างชื่อปุ่มตรงกับ `src/i18n/*.json` เปลี่ยนข้อความปุ่มต้องแก้คู่มือด้วย
+- **ผลตรวจตอนปิดขั้น 11** (build ด้วย base `/Coffee-Tracking-App/`): Lighthouse Performance 99 · Accessibility 100 · Best Practices 100 · SEO 100 · axe 0 ปัญหา · ออฟไลน์ผ่านครบ
+
 ---
 
 ## 7. โครงสร้างโปรเจกต์
@@ -316,7 +326,7 @@ src/
 | 8 | Export/Import (CSV สำหรับ Excel/Sheets, JSON Backup/Restore, เตือน Backup) | เปิด CSV ใน Excel ภาษาไทยไม่เพี้ยน, Restore ได้ครบ | Sonnet 5.5 | low ✅ เสร็จแล้ว |
 | 9 | i18n ไทย/อังกฤษ + ข้อความทั้งหมด | สลับภาษาได้ทั้งแอป | Haiku 5.5 | low ✅ เสร็จแล้ว |
 | 10 | Polish: Dark mode, Accessibility, ทดสอบออฟไลน์, Lighthouse | Lighthouse PWA/A11y ≥ 90 | Sonnet 5.5 | medium ✅ เสร็จแล้ว |
-| 11 | Deploy GitHub Pages + คู่มือผู้ใช้สั้น ๆ | ได้ลิงก์ใช้งานจริง | Haiku 5.5 | low |
+| 11 | Deploy GitHub Pages + คู่มือผู้ใช้สั้น ๆ | ได้ลิงก์ใช้งานจริง | Haiku 5.5 | low ✅ เสร็จแล้ว |
 
 **รวมโดยประมาณ:** 11 ขั้น · ใช้ Opus เฉพาะ 1 ขั้นที่เป็นหัวใจ · ที่เหลือเป็น Sonnet/Haiku เพื่อประหยัด token
 

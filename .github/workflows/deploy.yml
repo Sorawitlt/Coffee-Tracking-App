@@ -1,0 +1,56 @@
+# ขั้น 11: Deploy ขึ้น GitHub Pages
+# - รันอัตโนมัติเมื่อ push เข้า "default branch" ของ repo (ไม่ผูกชื่อ main/master — ใช้ได้กับ repo/fork ใดก็ได้)
+# - กดรันเองได้ที่แท็บ Actions → "Deploy to GitHub Pages" → Run workflow
+# - ต้องตั้งค่าครั้งแรกครั้งเดียว: Settings → Pages → Build and deployment → Source = "GitHub Actions"
+# - Deploy เฉพาะเมื่อ typecheck + test + audit (Lighthouse/axe/ออฟไลน์) ผ่าน บน build ที่มี base path จริง
+name: Deploy to GitHub Pages
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# deploy ทีละครั้ง ไม่ยกเลิกตัวที่กำลังขึ้นอยู่ (กันเว็บค้างครึ่งทาง)
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - id: pages
+        uses: actions/configure-pages@v6
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # base path มาจาก GitHub เอง: "/<ชื่อ repo>/" หรือ "/" ถ้าใช้ Custom domain
+      - run: npm run build
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+      - run: npm run audit
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

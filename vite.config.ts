@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// ตั้ง BASE_PATH เป็น '/Coffee-Tracking-App/' ตอน deploy บน GitHub Pages (ดูขั้น 11)
+// BASE_PATH: GitHub Actions ส่งมาตอน deploy GitHub Pages (เช่น '/Coffee-Tracking-App/') — ดู .github/workflows/deploy.yml
 const base = process.env.BASE_PATH ?? '/'
 
 export default defineConfig({
