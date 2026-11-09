@@ -214,7 +214,7 @@ src/
 | ขั้น | งาน | ผลลัพธ์ที่ตรวจได้ | Model | Effort |
 |-----|-----|----------------|-------|--------|
 | 0 | แผนแม่บท (เอกสารนี้) | `docs/PLAN.md` | Opus 5.5 | medium ✅ เสร็จแล้ว |
-| 1 | Scaffold: Vite + React + TS + Tailwind + PWA + Dexie + Vitest + CI (GitHub Actions) | `npm run dev` / `test` / `build` ผ่าน, ติดตั้งเป็นแอปได้ | Sonnet 5.5 | low |
+| 1 | Scaffold: Vite + React + TS + Tailwind + PWA + Dexie + Vitest + CI (GitHub Actions) | `npm run dev` / `test` / `build` ผ่าน, ติดตั้งเป็นแอปได้ | Sonnet 5.5 | low ✅ เสร็จแล้ว |
 | 2 | Domain + DB: schema, สูตรคำนวณ, default recipes, dial-in rules + unit tests | Test ครอบคลุมสูตรคำนวณ & กฎทั้งหมด | **Opus 5.5** | medium |
 | 3 | คลังเมล็ด & อุปกรณ์ (CRUD + วันหลังคั่ว + คงเหลือ) | เพิ่ม/แก้/ลบ/Archive ได้ | Sonnet 5.5 | medium |
 | 4 | บันทึกการชง (Quick log, เติมค่าอัตโนมัติ, ชงซ้ำ, ไฮไลต์ค่าที่เปลี่ยน) | บันทึกได้ใน ≤ 30 วินาที | Sonnet 5.5 | medium |

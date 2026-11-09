@@ -5,4 +5,13 @@
 A local-first PWA to log, guide, and improve your coffee brewing. Works offline on any device; exports to Excel / Google Sheets.
 
 - 📋 แผนการพัฒนาและสเปก: [docs/PLAN.md](docs/PLAN.md)
-- สถานะ: ขั้นที่ 0 (วางแผน) เสร็จแล้ว — ขั้นต่อไป: ขั้นที่ 1 Scaffold
+- สถานะ: ขั้นที่ 0–1 เสร็จแล้ว — ขั้นต่อไป: ขั้นที่ 2 Domain + DB
+
+## เริ่มใช้งาน (Development)
+
+```bash
+npm install
+npm run dev      # เปิดแอปที่ http://localhost:5173
+npm test         # รัน unit test (Vitest)
+npm run build    # build + สร้าง PWA (service worker, manifest)
+```
