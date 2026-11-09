@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { addBrew, deleteBrew, getSettings, listBeans, listBrews, listGear, updateBrew, useLive } from '../../db'
+import {
+  addBrew, deleteBrew, getSettings, listBeans, listBrews, listGear, updateBrew, useLive, type BrewInput,
+} from '../../db'
 import { Button } from '../../components/Button'
 import { NumberStepper } from '../../components/NumberStepper'
 import { NumberField, SelectField, TextField } from '../../components/fields'
@@ -7,10 +9,11 @@ import {
   buildDraft, changedVariables, dialInChangeCount, draftFromBrew, findReferenceBrew, pickDefaultBeanId,
   pickDefaultMethod, type DraftSource,
 } from '../../domain/brewDraft'
-import { beverageG, daysOffRoast, formatRatio, freshness, ratio } from '../../domain/calc'
+import { RATIO_PRESETS } from '../../domain/brewPlan'
+import { beverageG, daysOffRoast, formatRatio, freshness, ratio, waterForDose } from '../../domain/calc'
 import { METHOD_PROFILES } from '../../domain/methods'
 import { METHODS, type Bean, type Brew, type Gear, type Method } from '../../domain/types'
-import { parseNumber } from '../formUtil'
+import { numberToText, parseNumber } from '../formUtil'
 import { formatDateTime, formatDuration, formatGrams } from '../format'
 import { METHOD_LABEL } from '../labels'
 import {
@@ -22,13 +25,28 @@ import {
  * - `new`   : ชงใหม่ — เติมค่าจากครั้งล่าสุดของเมล็ด+วิธีนี้
  * - `repeat`: "ชงซ้ำ" — คัดลอกค่าตั้งจาก `brew` ทั้งหมด เวลา = ตอนนี้
  * - `edit`  : แก้ไข/ลบบันทึกเดิม
+ * - `start` : "เตรียมชง" ของผู้ช่วยชง — หน้าตั้งค่าเดียวกัน แต่ไม่บันทึก กดแล้วส่งค่าไป `onStart` เพื่อเริ่มจับเวลา
+ *             (ซ่อนช่องที่เป็นผลของการชง: เวลาชง, น้ำหนักเครื่องดื่ม, TDS, วันเวลา)
  */
 export interface BrewFormProps {
-  mode: 'new' | 'repeat' | 'edit'
+  mode: 'new' | 'repeat' | 'edit' | 'start'
   /** ต้นทางของ repeat หรือบันทึกที่แก้ไข */
   brew?: Brew
+  /**
+   * ค่าที่กรอกไว้แล้ว (mode `new`: ผลจากผู้ช่วยชงหลังชงเสร็จ · mode `start`: ย้อนกลับมาแก้ค่าก่อนชง)
+   * ยังเทียบ "ค่าที่เปลี่ยน" กับการชงครั้งก่อนของเมล็ด+วิธีเดียวกันตามปกติ
+   */
+  prefill?: BrewFormPrefill
+  /** mode `start`: ผู้ใช้กด "เริ่มชง" (ค่าผ่านการตรวจสอบแล้ว) */
+  onStart?: (input: BrewInput) => void
   onDone: (message?: string) => void
   onGoToBeans: () => void
+}
+
+export interface BrewFormPrefill {
+  values: BrewFormValues
+  /** ข้อความบอกที่มาของค่า แสดงเหนือฟอร์ม */
+  note?: string
 }
 
 export function BrewForm(props: BrewFormProps) {
@@ -64,7 +82,7 @@ function stepsFor(method: Method) {
 
 const withUnit = (v: number | undefined, unit: string) => (v === undefined ? '—' : `${formatGrams(v)}${unit}`)
 
-function BrewFormInner({ mode, brew, onDone, onGoToBeans, beans, gear, brews, defaultMethod }: InnerProps) {
+function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, beans, gear, brews, defaultMethod }: InnerProps) {
   const activeBeans = beans.filter((b) => !b.archived)
   const grinders = gear.filter((g) => g.type === 'grinder')
   const brewers = gear.filter((g) => g.type === 'brewer')
@@ -81,10 +99,14 @@ function BrewFormInner({ mode, brew, onDone, onGoToBeans, beans, gear, brews, de
     if (mode === 'repeat' && brew) {
       return { values: draftToForm(draftFromBrew(brew), brew.beanId, new Date()), reference: brew, source: undefined }
     }
-    const method = pickDefaultMethod(brews, defaultMethod)
-    const beanId = pickDefaultBeanId(activeBeans, brews) ?? ''
+    const method = prefill?.values.method ?? pickDefaultMethod(brews, defaultMethod)
+    const beanId = prefill?.values.beanId ?? pickDefaultBeanId(activeBeans, brews) ?? ''
     const r = buildDraft({ method, beanId: beanId || undefined, brews })
-    return { values: draftToForm(r.draft, beanId, new Date()), reference: r.reference, source: r.source }
+    return {
+      values: prefill?.values ?? draftToForm(r.draft, beanId, new Date()),
+      reference: r.reference,
+      source: prefill ? undefined : r.source,
+    }
   })
 
   const [values, setValues] = useState<BrewFormValues>(init.values)
@@ -115,7 +137,8 @@ function BrewFormInner({ mode, brew, onDone, onGoToBeans, beans, gear, brews, de
     }))
   }
 
-  const canRefill = mode !== 'edit'
+  // ฟอร์มบันทึกผลจากผู้ช่วยชง (new + prefill) ห้ามเติมค่าทับ — ค่าที่ชงจริงต้องคงไว้
+  const canRefill = mode !== 'edit' && !(mode === 'new' && prefill)
   const onMethod = (method: Method) => (canRefill ? refill(method, values.beanId) : set('method', method))
   const onBean = (beanId: string) => (canRefill ? refill(values.method, beanId) : set('beanId', beanId))
 
@@ -162,11 +185,13 @@ function BrewFormInner({ mode, brew, onDone, onGoToBeans, beans, gear, brews, de
       setErrors(result.errors)
       return
     }
-    if (mode === 'edit' && brew) void run(() => updateBrew(brew.id, result.value), 'แก้ไขบันทึกแล้ว')
+    if (mode === 'start') onStart?.(result.value)
+    else if (mode === 'edit' && brew) void run(() => updateBrew(brew.id, result.value), 'แก้ไขบันทึกแล้ว')
     else void run(() => addBrew(result.value), 'บันทึกการชงแล้ว')
   }
 
-  const title = mode === 'edit' ? 'แก้ไขบันทึกการชง' : mode === 'repeat' ? 'ชงซ้ำ' : 'บันทึกการชง'
+  const title =
+    mode === 'edit' ? 'แก้ไขบันทึกการชง' : mode === 'repeat' ? 'ชงซ้ำ' : mode === 'start' ? 'เตรียมชง' : 'บันทึกการชง'
 
   if (mode !== 'edit' && activeBeans.length === 0) {
     return (
@@ -177,7 +202,7 @@ function BrewFormInner({ mode, brew, onDone, onGoToBeans, beans, gear, brews, de
           <p className="mt-2 font-medium">ต้องมีเมล็ดในคลังก่อนจึงบันทึกการชงได้</p>
           <Button variant="primary" className="mt-4" onClick={onGoToBeans}>ไปเพิ่มเมล็ด</Button>
         </div>
-        <Button className="w-full" onClick={() => onDone()}>ย้อนกลับ</Button>
+        {mode !== 'start' && <Button className="w-full" onClick={() => onDone()}>ย้อนกลับ</Button>}
       </div>
     )
   }
@@ -193,6 +218,11 @@ function BrewFormInner({ mode, brew, onDone, onGoToBeans, beans, gear, brews, de
     <form onSubmit={onSubmit} noValidate className="space-y-4" aria-label={title}>
       <h2 className="text-xl font-bold">{title}</h2>
 
+      {prefill?.note && (
+        <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-700 dark:bg-stone-800 dark:text-stone-300">
+          {prefill.note}
+        </p>
+      )}
       {mode !== 'edit' && source && (
         <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-700 dark:bg-stone-800 dark:text-stone-300">
           {SOURCE_TEXT[source]}
@@ -245,6 +275,23 @@ function BrewFormInner({ mode, brew, onDone, onGoToBeans, beans, gear, brews, de
         )}
       </p>
 
+      {mode === 'start' && (
+        <div role="group" aria-label="อัตราส่วนลัด" className="-mt-2 flex flex-wrap justify-center gap-2">
+          {RATIO_PRESETS[values.method].map((x) => (
+            <button
+              key={x}
+              type="button"
+              disabled={!doseOk}
+              aria-pressed={r !== undefined && Math.abs(r - x) < 0.05}
+              onClick={() => dose !== undefined && set('waterG', numberToText(waterForDose(dose, x)))}
+              className="min-h-12 min-w-16 rounded-xl border border-stone-300 bg-white px-3 text-base font-semibold tabular-nums text-stone-800 hover:bg-stone-100 disabled:opacity-50 aria-pressed:border-amber-700 aria-pressed:bg-amber-100 aria-pressed:text-amber-900 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700 dark:aria-pressed:border-amber-500 dark:aria-pressed:bg-amber-950 dark:aria-pressed:text-amber-200"
+            >
+              {`1:${x}`}
+            </button>
+          ))}
+        </div>
+      )}
+
       {grinders.length > 0 && (
         <div>
           <SelectField label="เครื่องบด" value={values.grinderId} onChange={(e) => set('grinderId', e.target.value)}>
@@ -279,40 +326,50 @@ function BrewFormInner({ mode, brew, onDone, onGoToBeans, beans, gear, brews, de
         </p>
       )}
 
-      <NumberStepper label="เวลาชง (วินาที)" value={values.totalTimeSec} step={5} min={5} start={profile.timeRangeSec[0]}
-        hint={`${parseNumber(values.totalTimeSec) ? `= ${formatDuration(parseNumber(values.totalTimeSec)!)} · ` : ''}เป้าหมาย ${formatDuration(profile.timeRangeSec[0])}–${formatDuration(profile.timeRangeSec[1])}`}
-        error={errors.totalTimeSec} onChange={(v) => set('totalTimeSec', v)} />
+      {mode === 'start' ? (
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          เวลาเป้าหมาย {formatDuration(profile.timeRangeSec[0])}–{formatDuration(profile.timeRangeSec[1])} · เวลาชงจริงจะบันทึกจากตัวจับเวลาให้อัตโนมัติ
+        </p>
+      ) : (
+        <NumberStepper label="เวลาชง (วินาที)" value={values.totalTimeSec} step={5} min={5} start={profile.timeRangeSec[0]}
+          hint={`${parseNumber(values.totalTimeSec) ? `= ${formatDuration(parseNumber(values.totalTimeSec)!)} · ` : ''}เป้าหมาย ${formatDuration(profile.timeRangeSec[0])}–${formatDuration(profile.timeRangeSec[1])}`}
+          error={errors.totalTimeSec} onChange={(v) => set('totalTimeSec', v)} />
+      )}
 
-      <details className="rounded-2xl border border-stone-200 p-3 dark:border-stone-700">
-        <summary className="flex min-h-12 cursor-pointer items-center text-base font-semibold">รายละเอียดเพิ่มเติม (ไม่บังคับ)</summary>
-        <div className="mt-2 space-y-4">
-          {brewers.length > 0 && (
-            <SelectField label="อุปกรณ์ชง" value={values.brewerId} onChange={(e) => set('brewerId', e.target.value)}>
-              <option value="">— ไม่ระบุ —</option>
-              {gearOptions(brewers, values.brewerId)}
-            </SelectField>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField label="น้ำหนักเครื่องดื่มจริง (g)" value={values.yieldG} error={errors.yieldG}
-              hint="เว้นว่าง = ประมาณให้" onChange={(e) => set('yieldG', e.target.value)} />
-            <NumberField label="TDS (%)" value={values.tds} error={errors.tds}
-              hint="ถ้ามี Refractometer" onChange={(e) => set('tds', e.target.value)} />
+      {mode !== 'start' && (
+        <details className="rounded-2xl border border-stone-200 p-3 dark:border-stone-700">
+          <summary className="flex min-h-12 cursor-pointer items-center text-base font-semibold">รายละเอียดเพิ่มเติม (ไม่บังคับ)</summary>
+          <div className="mt-2 space-y-4">
+            {brewers.length > 0 && (
+              <SelectField label="อุปกรณ์ชง" value={values.brewerId} onChange={(e) => set('brewerId', e.target.value)}>
+                <option value="">— ไม่ระบุ —</option>
+                {gearOptions(brewers, values.brewerId)}
+              </SelectField>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField label="น้ำหนักเครื่องดื่มจริง (g)" value={values.yieldG} error={errors.yieldG}
+                hint="เว้นว่าง = ประมาณให้" onChange={(e) => set('yieldG', e.target.value)} />
+              <NumberField label="TDS (%)" value={values.tds} error={errors.tds}
+                hint="ถ้ามี Refractometer" onChange={(e) => set('tds', e.target.value)} />
+            </div>
+            <TextField label="วันและเวลาที่ชง" type="datetime-local" value={values.brewedAt} error={errors.brewedAt}
+              max={toDateTimeLocal(new Date())} onChange={(e) => set('brewedAt', e.target.value)} />
           </div>
-          <TextField label="วันและเวลาที่ชง" type="datetime-local" value={values.brewedAt} error={errors.brewedAt}
-            max={toDateTimeLocal(new Date())} onChange={(e) => set('brewedAt', e.target.value)} />
-        </div>
-      </details>
+        </details>
+      )}
 
       {lowStock && bean && (
         <p role="status" className="rounded-xl bg-orange-50 p-3 text-sm font-medium text-orange-900 dark:bg-orange-950/40 dark:text-orange-200">
-          เมล็ดเหลือ {formatGrams(Math.max(0, bean.remainingG))} g น้อยกว่าที่ใช้ — ยังบันทึกได้ (ยอดคงเหลือจะเป็น 0)
+          เมล็ดเหลือ {formatGrams(Math.max(0, bean.remainingG))} g น้อยกว่าที่ใช้ — {mode === 'start' ? 'ยังชงต่อได้' : 'ยังบันทึกได้'} (ยอดคงเหลือจะเป็น 0)
         </p>
       )}
       {actionError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-800 dark:bg-red-950 dark:text-red-200">{actionError}</p>}
 
       <div className="flex gap-3">
-        <Button className="flex-1" onClick={() => onDone()} disabled={saving}>ยกเลิก</Button>
-        <Button variant="primary" type="submit" className="flex-1" disabled={saving}>บันทึก</Button>
+        {mode !== 'start' && <Button className="flex-1" onClick={() => onDone()} disabled={saving}>ยกเลิก</Button>}
+        <Button variant="primary" type="submit" className={mode === 'start' ? 'h-14 flex-1 text-lg' : 'flex-1'} disabled={saving}>
+          {mode === 'start' ? '▶ เริ่มชง' : 'บันทึก'}
+        </Button>
       </div>
 
       {mode === 'edit' && brew && (

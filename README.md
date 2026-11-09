@@ -5,7 +5,7 @@
 A local-first PWA to log, guide, and improve your coffee brewing. Works offline on any device; exports to Excel / Google Sheets.
 
 - 📋 แผนการพัฒนาและสเปก: [docs/PLAN.md](docs/PLAN.md)
-- สถานะ: ขั้นที่ 0–4 เสร็จแล้ว — ขั้นต่อไป: ขั้นที่ 5 ผู้ช่วยชง (Timer)
+- สถานะ: ขั้นที่ 0–5 เสร็จแล้ว — ขั้นต่อไป: ขั้นที่ 6 ชิม & Dial-in Advisor
 
 ## เริ่มใช้งาน (Development)
 

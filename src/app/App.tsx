@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AssistantPage from '../features/assistant/AssistantPage'
 import BeansPage from '../features/beans/BeansPage'
 import LogPage from '../features/brew/LogPage'
 
@@ -19,15 +20,17 @@ export default function App() {
     <div className="mx-auto flex min-h-dvh max-w-xl flex-col">
       <main className="flex-1 p-4">
         <h1 className="mb-4 text-2xl font-bold">Brew Log</h1>
+        {/* ติดตั้งไว้ตลอด: ถ้ากำลังจับเวลาอยู่ เสียงเตือนและกันจอดับต้องทำงานต่อแม้สลับไปแท็บอื่น */}
+        <AssistantPage active={tab === 'brew'} onGoToBeans={() => setTab('beans')} />
         {tab === 'beans' ? (
           <BeansPage />
         ) : tab === 'log' ? (
           <LogPage onGoToBeans={() => setTab('beans')} />
-        ) : (
+        ) : tab === 'insights' ? (
           <p className="text-stone-600 dark:text-stone-400">
             {current.icon} {current.label} — เร็ว ๆ นี้
           </p>
-        )}
+        ) : null}
       </main>
       <nav aria-label="เมนูหลัก" className="sticky bottom-0 grid grid-cols-4 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-stone-700 dark:bg-stone-800">
         {TABS.map((t) => (
