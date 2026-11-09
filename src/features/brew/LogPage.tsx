@@ -1,11 +1,22 @@
 import { useEffect, useState } from 'react'
 import { getBrew, listBeans, listBrews, useLive } from '../../db'
 import { Button } from '../../components/Button'
+import { filterBrews, isFilterActive, type BrewFilter } from '../../domain/history'
+import { FLAVOR_TAG_LABEL, METHOD_LABEL } from '../labels'
+import type { Method } from '../../domain/types'
+import { isFlavorTag } from '../../domain/flavors'
+import { BrewFilters } from './BrewFilters'
 import { BrewCard } from './BrewCard'
 import { BrewForm } from './BrewForm'
 import { BrewResult } from './BrewResult'
 
 const PAGE_SIZE = 50
+
+/** ให้ค้นหาด้วยป้ายภาษาไทย เช่น พิมพ์ "ซิตรัส" แล้วเจอแท็ก citrus */
+const SEARCH_LABELS = {
+  method: (m: Method) => METHOD_LABEL[m],
+  flavorTag: (code: string) => (isFlavorTag(code) ? FLAVOR_TAG_LABEL[code] : code),
+}
 
 type View =
   | { kind: 'list' }
@@ -81,8 +92,15 @@ function BrewList({ notice, onAdd, onOpen, onRepeat }: {
   onRepeat: (id: string) => void
 }) {
   const [limit, setLimit] = useState(PAGE_SIZE)
+  const [filter, setFilter] = useState<BrewFilter>({})
   const brews = useLive(() => listBrews())
-  const beans = useLive(async () => new Map((await listBeans({ includeArchived: true })).map((b) => [b.id, b])))
+  const beanList = useLive(() => listBeans({ includeArchived: true }))
+  const beans = beanList && new Map(beanList.map((b) => [b.id, b]))
+  const visible = brews && beans ? filterBrews(brews, filter, beans, SEARCH_LABELS) : undefined
+  const changeFilter = (next: BrewFilter) => {
+    setFilter(next)
+    setLimit(PAGE_SIZE) // ผลลัพธ์เปลี่ยน → เริ่มนับหน้าใหม่
+  }
 
   return (
     <section aria-label="บันทึกการชง" className="space-y-3">
@@ -96,7 +114,11 @@ function BrewList({ notice, onAdd, onOpen, onRepeat }: {
         </p>
       )}
 
-      {brews === undefined || beans === undefined ? null : brews.length === 0 ? (
+      {brews !== undefined && beanList !== undefined && brews.length > 0 && (
+        <BrewFilters filter={filter} onChange={changeFilter} beans={beanList} shown={visible?.length ?? 0} total={brews.length} />
+      )}
+
+      {brews === undefined || beans === undefined || visible === undefined ? null : brews.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-300 p-8 text-center dark:border-stone-600">
           <p className="text-4xl" aria-hidden>📖</p>
           <p className="mt-2 font-medium">ยังไม่มีบันทึกการชง</p>
@@ -104,18 +126,22 @@ function BrewList({ notice, onAdd, onOpen, onRepeat }: {
             กดปุ่มด้านบนเพื่อบันทึกแก้วแรก — ครั้งต่อไปแอปจะเติมค่าจากครั้งล่าสุดให้ และกด “ชงซ้ำ” ได้ทันที
           </p>
         </div>
+      ) : visible.length === 0 ? (
+        <p role="status" className="rounded-2xl border border-dashed border-stone-300 p-6 text-center text-sm text-stone-600 dark:border-stone-600 dark:text-stone-400">
+          ไม่พบบันทึกที่ตรงกับ{isFilterActive(filter) ? 'ตัวกรอง' : 'เงื่อนไข'}นี้
+        </p>
       ) : (
         <>
           <ul className="space-y-3">
-            {brews.slice(0, limit).map((b) => (
+            {visible.slice(0, limit).map((b) => (
               <li key={b.id}>
                 <BrewCard brew={b} bean={beans.get(b.beanId)} onOpen={() => onOpen(b.id)} onRepeat={() => onRepeat(b.id)} />
               </li>
             ))}
           </ul>
-          {brews.length > limit && (
+          {visible.length > limit && (
             <Button className="w-full" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
-              แสดงเพิ่ม ({brews.length - limit})
+              แสดงเพิ่ม ({visible.length - limit})
             </Button>
           )}
         </>

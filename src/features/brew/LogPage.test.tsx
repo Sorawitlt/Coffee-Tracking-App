@@ -514,3 +514,83 @@ describe('ชิม & ให้คะแนน → ครั้งหน้า�
     expect(await screen.findByText(/เมล็ดยังสดมาก อาจมีก๊าซเยอะ ควรพักก่อน/)).toBeInTheDocument()
   })
 })
+
+describe('ค้นหา / กรองประวัติ', () => {
+  async function seedHistory() {
+    const guji = await seedBean({ name: 'Guji Natural', roaster: 'Roast Co' })
+    const doi = await seedBean({ name: 'Doi Chang', roaster: 'Hill Roasters', origin: 'Thailand' })
+    await addBrew({ brewedAt: hoursAgo(5), method: 'v60', beanId: guji.id, doseG: 15, waterG: 240, rating: 5, isBest: true, flavorTags: ['citrus'], notes: 'หอมดอกไม้' })
+    await addBrew({ brewedAt: hoursAgo(4), method: 'espresso', beanId: doi.id, doseG: 18, waterG: 36, rating: 3 })
+    await addBrew({ brewedAt: hoursAgo(3), method: 'v60', beanId: doi.id, doseG: 15, waterG: 240 })
+    return { guji, doi }
+  }
+
+  it('ไม่มีบันทึก → ไม่แสดงช่องค้นหา', async () => {
+    setup()
+    await screen.findByText('ยังไม่มีบันทึกการชง')
+    expect(screen.queryByRole('search', { name: 'ค้นหาบันทึก' })).not.toBeInTheDocument()
+  })
+
+  it('พิมพ์ค้นหาชื่อเมล็ด → กรองรายการ + บอกจำนวน + ล้างตัวกรองได้', async () => {
+    await seedHistory()
+    const { user } = setup()
+    expect(await screen.findAllByRole('article')).toHaveLength(3)
+
+    await user.type(screen.getByRole('searchbox', { name: 'ค้นหา' }), 'doi')
+    expect(await screen.findAllByRole('article')).toHaveLength(2)
+    expect(screen.getByText('แสดง 2 จาก 3 รายการ')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'ล้างตัวกรอง' }))
+    expect(await screen.findAllByRole('article')).toHaveLength(3)
+    expect(screen.getByRole('searchbox', { name: 'ค้นหา' })).toHaveValue('')
+    expect(screen.queryByText(/แสดง \d+ จาก/)).not.toBeInTheDocument()
+  })
+
+  it('ค้นจากป้ายภาษาไทยของแท็กรสชาติและโน้ต', async () => {
+    await seedHistory()
+    const { user } = setup()
+    const box = await screen.findByRole('searchbox', { name: 'ค้นหา' })
+    await user.type(box, 'ซิตรัส')
+    expect(await screen.findAllByRole('article')).toHaveLength(1)
+    await user.clear(box)
+    await user.type(box, 'ดอกไม้')
+    expect(await screen.findAllByRole('article')).toHaveLength(1)
+  })
+
+  it('กรองตามวิธีชง, คะแนนอย่างน้อย, เฉพาะสูตรที่ดีที่สุด', async () => {
+    await seedHistory()
+    const { user } = setup()
+    await screen.findAllByRole('article')
+    await user.click(screen.getByText('ตัวกรอง'))
+
+    await user.selectOptions(screen.getByLabelText('วิธีชง'), 'espresso')
+    expect(await screen.findAllByRole('article')).toHaveLength(1)
+    expect(screen.getByText(/Espresso · Doi Chang/)).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('วิธีชง'), '')
+
+    await user.selectOptions(screen.getByLabelText('คะแนนอย่างน้อย'), '4')
+    expect(await screen.findAllByRole('article')).toHaveLength(1)
+    expect(screen.getByText(/V60 · Guji Natural/)).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('คะแนนอย่างน้อย'), '')
+
+    await user.click(screen.getByRole('checkbox', { name: /เฉพาะ ⭐ สูตรที่ดีที่สุด/ }))
+    expect(await screen.findAllByRole('article')).toHaveLength(1)
+    expect(screen.getByText('⭐ สูตรที่ดีที่สุด')).toBeInTheDocument()
+  })
+
+  it('ไม่พบตามตัวกรอง → แจ้งว่าไม่พบ (ไม่ใช่หน้าว่างของคนยังไม่มีข้อมูล) และกรองเมล็ดที่ Archive แล้วยังเจอ', async () => {
+    const { guji } = await seedHistory()
+    await db.beans.update(guji.id, { archived: true })
+    const { user } = setup()
+    await screen.findAllByRole('article')
+
+    await user.type(screen.getByRole('searchbox', { name: 'ค้นหา' }), 'ไม่มีอะไรแบบนี้')
+    expect(await screen.findByText('ไม่พบบันทึกที่ตรงกับตัวกรองนี้')).toBeInTheDocument()
+    expect(screen.queryByText('ยังไม่มีบันทึกการชง')).not.toBeInTheDocument()
+
+    await user.click(screen.getByText('ตัวกรอง'))
+    await user.clear(screen.getByRole('searchbox', { name: 'ค้นหา' }))
+    await user.selectOptions(screen.getByLabelText('เมล็ด'), guji.id)
+    expect(await screen.findAllByRole('article')).toHaveLength(1)
+  })
+})

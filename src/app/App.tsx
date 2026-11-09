@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import AssistantPage from '../features/assistant/AssistantPage'
 import BeansPage from '../features/beans/BeansPage'
 import LogPage from '../features/brew/LogPage'
+
+// กราฟ (Recharts) แยกเป็นก้อนโหลดตอนเปิดแท็บ "สรุป" ครั้งแรก — ไม่ถ่วงการเปิดแอปและหน้าชง
+const InsightsPage = lazy(() => import('../features/insights/InsightsPage'))
 
 const TABS = [
   { id: 'brew', icon: '☕', label: 'ชง' },
@@ -14,7 +17,6 @@ type TabId = (typeof TABS)[number]['id']
 
 export default function App() {
   const [tab, setTab] = useState<TabId>('brew')
-  const current = TABS.find((t) => t.id === tab)!
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-xl flex-col">
@@ -27,9 +29,9 @@ export default function App() {
         ) : tab === 'log' ? (
           <LogPage onGoToBeans={() => setTab('beans')} />
         ) : tab === 'insights' ? (
-          <p className="text-stone-600 dark:text-stone-400">
-            {current.icon} {current.label} — เร็ว ๆ นี้
-          </p>
+          <Suspense fallback={null}>
+            <InsightsPage />
+          </Suspense>
         ) : null}
       </main>
       <nav aria-label="เมนูหลัก" className="sticky bottom-0 grid grid-cols-4 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-stone-700 dark:bg-stone-800">

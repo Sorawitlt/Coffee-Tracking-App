@@ -9,3 +9,21 @@ body {
   @apply bg-stone-50 text-stone-900 dark:bg-stone-900 dark:text-stone-100;
   font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans Thai', sans-serif;
 }
+
+/* สีของกราฟ (ขั้น 7) — ผ่าน validate_palette: น้ำเงินซีรีส์เดียวบนพื้นสว่าง/มืด, เทา = ข้อมูลรอง
+   โหมดมืดเลือกตาม `.dark` เหมือนส่วนอื่นของแอป (ขั้น 10 จะผูกกับการตั้งค่าธีม) */
+.viz-root {
+  --viz-surface: #fcfcfb;
+  --viz-series: #2a78d6;
+  --viz-muted: #898781;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-text: #52514e;
+}
+:where(.dark) .viz-root {
+  --viz-surface: #1a1a19;
+  --viz-series: #3987e5;
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --viz-text: #c3c2b7;
+}
