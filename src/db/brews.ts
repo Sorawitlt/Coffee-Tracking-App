@@ -1,6 +1,7 @@
 import { newId, nowIso } from '../domain/id'
 import type { Brew } from '../domain/types'
 import { db } from './db'
+import { stripUndefined } from './util'
 
 /**
  * Repository ของบันทึกการชง
@@ -25,7 +26,7 @@ async function adjustRemaining(beanId: string, deltaG: number, at: string): Prom
 
 export async function addBrew(input: BrewInput): Promise<Brew> {
   const at = nowIso()
-  const brew: Brew = { flavorTags: [], isBest: false, ...input, id: newId(), createdAt: at, updatedAt: at }
+  const brew: Brew = { flavorTags: [], isBest: false, ...stripUndefined(input), id: newId(), createdAt: at, updatedAt: at }
   await db.transaction('rw', db.brews, db.beans, async () => {
     await db.brews.add(brew)
     await adjustRemaining(brew.beanId, -brew.doseG, at)
@@ -38,7 +39,8 @@ export async function updateBrew(id: string, changes: BrewChanges): Promise<Brew
     const prev = await db.brews.get(id)
     if (!prev) throw new Error(`Brew not found: ${id}`)
     const at = nowIso()
-    const next: Brew = { ...prev, ...changes, id, createdAt: prev.createdAt, updatedAt: at }
+    // ค่า undefined ใน changes = ล้างฟิลด์นั้นออก (เช่น ลบอุณหภูมิ) — ฟิลด์ที่ไม่มีค่าไม่เก็บเป็นคีย์
+    const next: Brew = stripUndefined({ ...prev, ...changes, id, createdAt: prev.createdAt, updatedAt: at })
     if (prev.beanId !== next.beanId) {
       await adjustRemaining(prev.beanId, prev.doseG, at)
       await adjustRemaining(next.beanId, -next.doseG, at)
@@ -57,4 +59,13 @@ export async function deleteBrew(id: string): Promise<void> {
     await db.brews.delete(id)
     await adjustRemaining(prev.beanId, prev.doseG, nowIso())
   })
+}
+
+export function getBrew(id: string): Promise<Brew | undefined> {
+  return db.brews.get(id)
+}
+
+/** ประวัติการชงเรียงล่าสุดก่อน (ตามเวลาที่ชง) */
+export function listBrews(): Promise<Brew[]> {
+  return db.brews.orderBy('brewedAt').reverse().toArray()
 }

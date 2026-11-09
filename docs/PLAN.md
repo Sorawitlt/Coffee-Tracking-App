@@ -237,7 +237,7 @@ src/
 | 1 | Scaffold: Vite + React + TS + Tailwind + PWA + Dexie + Vitest + CI (GitHub Actions) | `npm run dev` / `test` / `build` ผ่าน, ติดตั้งเป็นแอปได้ | Sonnet 5.5 | low ✅ เสร็จแล้ว |
 | 2 | Domain + DB: schema, สูตรคำนวณ, default recipes, dial-in rules + unit tests | Test ครอบคลุมสูตรคำนวณ & กฎทั้งหมด | **Opus 5.5** | medium ✅ เสร็จแล้ว |
 | 3 | คลังเมล็ด & อุปกรณ์ (CRUD + วันหลังคั่ว + คงเหลือ) | เพิ่ม/แก้/ลบ/Archive ได้ | Sonnet 5.5 | medium ✅ เสร็จแล้ว |
-| 4 | บันทึกการชง (Quick log, เติมค่าอัตโนมัติ, ชงซ้ำ, ไฮไลต์ค่าที่เปลี่ยน) | บันทึกได้ใน ≤ 30 วินาที | Sonnet 5.5 | medium |
+| 4 | บันทึกการชง (Quick log, เติมค่าอัตโนมัติ, ชงซ้ำ, ไฮไลต์ค่าที่เปลี่ยน) | บันทึกได้ใน ≤ 30 วินาที | Sonnet 5.5 | medium ✅ เสร็จแล้ว |
 | 5 | ผู้ช่วยชง (Timer + ขั้นตอน + เสียง/สั่น + Wake Lock) | ชง V60/Espresso ตามแอปได้จริง | Sonnet 5.5 | high |
 | 6 | ชิม & Dial-in Advisor (UI การชิม + แสดงคำแนะนำ + ติดดาวสูตรดีที่สุด) | ได้คำแนะนำ 1 ข้อหลังบันทึก | Sonnet 5.5 | medium |
 | 7 | ประวัติ & Insights (ค้นหา/กรอง, กราฟ, Brew Control Chart) | เห็นแนวโน้มและสูตรที่ดีที่สุด | Sonnet 5.5 | medium |

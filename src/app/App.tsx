@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import BeansPage from '../features/beans/BeansPage'
+import LogPage from '../features/brew/LogPage'
 
 const TABS = [
   { id: 'brew', icon: '☕', label: 'ชง' },
@@ -20,6 +21,8 @@ export default function App() {
         <h1 className="mb-4 text-2xl font-bold">Brew Log</h1>
         {tab === 'beans' ? (
           <BeansPage />
+        ) : tab === 'log' ? (
+          <LogPage onGoToBeans={() => setTab('beans')} />
         ) : (
           <p className="text-stone-600 dark:text-stone-400">
             {current.icon} {current.label} — เร็ว ๆ นี้

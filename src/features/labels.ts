@@ -1,4 +1,4 @@
-import type { BeanProcess, GearType, RoastLevel } from '../domain/types'
+import type { BeanProcess, GearType, Method, RoastLevel } from '../domain/types'
 
 /**
  * ป้ายข้อความภาษาไทยของตัวเลือกต่าง ๆ
@@ -41,3 +41,14 @@ export const GEAR_TYPE_ICON: Record<GearType, string> = {
 
 /** สกุลเงินที่เลือกได้ในฟอร์มเมล็ด (THB เป็นค่าเริ่มต้น) */
 export const CURRENCIES = ['THB', 'USD', 'EUR', 'GBP', 'JPY', 'SGD', 'AUD'] as const
+
+export const METHOD_LABEL: Record<Method, string> = {
+  espresso: 'Espresso',
+  v60: 'V60',
+  kalita: 'Kalita Wave',
+  chemex: 'Chemex',
+  aeropress: 'AeroPress',
+  frenchPress: 'French Press',
+  moka: 'Moka Pot',
+  coldBrew: 'Cold Brew',
+}
