@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
 import { getSettings, updateSettings, useLive } from '../db'
+import { useSyncedChoice } from '../db/useSyncedChoice'
 import type { Language } from '../domain/types'
 import { createT, DEFAULT_LANGUAGE, isLanguage, LOCALE, type TFunction } from './index'
 
@@ -42,31 +43,19 @@ function makeValue(lang: Language, setLanguage: (l: Language) => void): I18nValu
 const I18nContext = createContext<I18nValue>(makeValue(DEFAULT_LANGUAGE, () => {}))
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Language>(readCachedLanguage)
   const savedLanguage = useLive(async () => (await getSettings()).language)
-
-  // ค่าใน DB เปลี่ยน (เช่น นำข้อมูลสำรองกลับ) → ตามค่านั้น
-  useEffect(() => {
-    if (savedLanguage && savedLanguage !== lang) {
-      setLang(savedLanguage)
-      cacheLanguage(savedLanguage)
-    }
-    // จงใจดูเฉพาะค่าที่บันทึกไว้ — ตอนผู้ใช้กดสลับ `lang` เปลี่ยนก่อน DB ไม่ต้องถูกดึงกลับ
-  }, [savedLanguage])
+  // ตาม DB (เช่น นำข้อมูลสำรองกลับ) แต่ค่าเก่าที่อ่านค้างมาไม่ทับค่าที่ผู้ใช้เพิ่งเลือก — ดู useSyncedChoice
+  const [lang, setLanguage] = useSyncedChoice(savedLanguage, readCachedLanguage, cacheLanguage, saveLanguage)
 
   useEffect(() => {
     document.documentElement.lang = lang
   }, [lang])
 
-  const setLanguage = useCallback((next: Language) => {
-    setLang(next)
-    cacheLanguage(next)
-    updateSettings({ language: next }).catch((err) => console.error('save language failed', err))
-  }, [])
-
   const value = useMemo(() => makeValue(lang, setLanguage), [lang, setLanguage])
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
 }
+
+const saveLanguage = (language: Language) => updateSettings({ language })
 
 export function useI18n(): I18nValue {
   return useContext(I18nContext)

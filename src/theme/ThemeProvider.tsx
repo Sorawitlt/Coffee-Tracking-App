@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getSettings, updateSettings, useLive } from '../db'
+import { useSyncedChoice } from '../db/useSyncedChoice'
 import type { Theme } from '../domain/types'
 import {
   applyTheme,
@@ -34,18 +35,10 @@ const ThemeContext = createContext<ThemeValue>({
  * โหมด "อัตโนมัติ" ตามการตั้งค่าเครื่องแบบสด (เปลี่ยนโหมดมืดของเครื่องตอนเปิดแอปอยู่ก็ตามทันที)
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(readCachedTheme)
   const [systemDark, setSystemDark] = useState(systemPrefersDark)
   const savedTheme = useLive(async () => (await getSettings()).theme)
-
-  // ค่าใน DB เปลี่ยน (เช่น นำข้อมูลสำรองกลับ) → ตามค่านั้น
-  useEffect(() => {
-    if (savedTheme && savedTheme !== theme) {
-      setThemeState(savedTheme)
-      cacheTheme(savedTheme)
-    }
-    // จงใจดูเฉพาะค่าที่บันทึกไว้ — ตอนผู้ใช้กดสลับ `theme` เปลี่ยนก่อน DB ไม่ต้องถูกดึงกลับ
-  }, [savedTheme])
+  // ตาม DB (เช่น นำข้อมูลสำรองกลับ) แต่ค่าเก่าที่อ่านค้างมาไม่ทับค่าที่ผู้ใช้เพิ่งเลือก — ดู useSyncedChoice
+  const [theme, setTheme] = useSyncedChoice(savedTheme, readCachedTheme, cacheTheme, saveTheme)
 
   useEffect(() => {
     let mq: MediaQueryList
@@ -62,15 +55,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const resolved = resolveTheme(theme, systemDark)
   useEffect(() => applyTheme(resolved), [resolved])
 
-  const setTheme = useCallback((next: Theme) => {
-    setThemeState(next)
-    cacheTheme(next)
-    updateSettings({ theme: next }).catch((err) => console.error('save theme failed', err))
-  }, [])
-
   const value = useMemo(() => ({ theme, resolved, systemDark, setTheme }), [theme, resolved, systemDark, setTheme])
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
+
+const saveTheme = (theme: Theme) => updateSettings({ theme })
 
 export function useTheme(): ThemeValue {
   return useContext(ThemeContext)
