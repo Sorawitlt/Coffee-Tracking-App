@@ -70,7 +70,17 @@ export interface GrindScale {
 export interface Gear extends Timestamps {
   id: string
   type: GearType
+  /** ชื่อที่แสดงในแอป (ตั้งเองได้ เช่น "DF64 ที่บ้าน") */
   name: string
+  /** ยี่ห้อ เช่น "DF Grinders" */
+  brand?: string
+  /** รุ่น เช่น "DF64 Gen 2" */
+  model?: string
+  /**
+   * รหัสรุ่นในฐานข้อมูลอ้างอิง (`domain/catalog`) — ใช้แสดงสเปก/แหล่งอ้างอิง/ช่วงเบอร์บดที่ผู้ผลิตแนะนำ
+   * ยี่ห้อ/รุ่นถูกคัดลอกมาเก็บที่ `brand`/`model` ด้วย → ข้อมูลยังครบแม้ฐานข้อมูลเวอร์ชันหน้าเปลี่ยนไป
+   */
+  catalogId?: string
   /** ใช้กับ type = 'grinder' */
   grindScale?: GrindScale
   notes?: string

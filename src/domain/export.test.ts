@@ -1,4 +1,4 @@
-import { beansToCsv, brewsToCsv, toLocalDateTime } from './export'
+import { beansToCsv, brewsToCsv, gearToCsv, toLocalDateTime } from './export'
 import type { Bean, Brew, Gear } from './types'
 
 const T = '2026-11-01T00:00:00.000Z'
@@ -104,5 +104,30 @@ describe('beansToCsv', () => {
     expect(out[0].remaining_g).toBe('0')
     expect(out[1].remaining_g).toBe('235')
     expect(out[1].archived).toBe('FALSE')
+  })
+})
+
+describe('gearToCsv', () => {
+  it('แยกคอลัมน์ ยี่ห้อ/รุ่น/รหัสฐานข้อมูล/สเกลเบอร์บด และเรียงตามชนิดแล้วชื่อ', () => {
+    const df64: Gear = {
+      id: 'g-2', type: 'grinder', name: 'DF64 ที่บ้าน', brand: 'DF Grinders', model: 'DF64 Gen 2',
+      catalogId: 'df-grinders-df64-gen-2', grindScale: { min: 0, max: 90, step: 0.5 }, createdAt: T, updatedAt: T,
+    }
+    const flair: Gear = { id: 'g-3', type: 'brewer', name: 'Flair 58 Plus 2', brand: 'Flair Espresso', createdAt: T, updatedAt: T }
+    const out = rows(gearToCsv([flair, df64, grinder]))
+    expect(out.map((r) => r.gear_id)).toEqual(['g-1', 'g-2', 'g-3'])
+    expect(out[1]).toMatchObject({
+      type: 'grinder', brand: 'DF Grinders', model: 'DF64 Gen 2', catalog_id: 'df-grinders-df64-gen-2',
+      grind_min: '0', grind_max: '90', grind_step: '0.5',
+    })
+    expect(out[0]).toMatchObject({ brand: '', model: '', catalog_id: '', grind_min: '' })
+    expect(out[2]).toMatchObject({ type: 'brewer', brand: 'Flair Espresso', model: '' })
+  })
+
+  it('ไฟล์การชงมีรหัสอุปกรณ์ต่อท้าย (join กับไฟล์อุปกรณ์ได้)', () => {
+    const csv = brewsToCsv([brew({ grinderId: 'g-1', brewerId: 'g-3' })], [bean], [grinder])
+    const head = csv.replace('\uFEFF', '').trim().split('\r\n')[0].split(',')
+    expect(head.slice(-2)).toEqual(['grinder_id', 'brewer_id'])
+    expect(rows(csv)[0]).toMatchObject({ grinder_id: 'g-1', brewer_id: 'g-3' })
   })
 })

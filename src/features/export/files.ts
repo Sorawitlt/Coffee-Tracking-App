@@ -1,6 +1,6 @@
 /** ช่วยเหลือเรื่องไฟล์ในเบราว์เซอร์: ตั้งชื่อ, ดาวน์โหลด, อ่านไฟล์ที่ผู้ใช้เลือก */
 
-export type ExportKind = 'backup' | 'brews' | 'beans'
+export type ExportKind = 'backup' | 'brews' | 'beans' | 'gear'
 
 /** ชื่อไฟล์ตามวันที่ท้องถิ่น เช่น `brew-log-backup-2026-11-09.json` */
 export function exportFileName(kind: ExportKind, now: Date = new Date()): string {

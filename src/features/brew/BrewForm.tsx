@@ -11,7 +11,9 @@ import {
 } from '../../domain/brewDraft'
 import { RATIO_PRESETS } from '../../domain/brewPlan'
 import { beverageG, daysOffRoast, formatRatio, freshness, ratio, waterForDose } from '../../domain/calc'
+import { grindGuideFor, getGearModel } from '../../domain/catalog'
 import { adviceToStore } from '../../domain/dialIn'
+import { snapToStep } from '../../domain/inventory'
 import { METHOD_PROFILES } from '../../domain/methods'
 import { METHODS, type Bean, type Brew, type Gear, type Method } from '../../domain/types'
 import type { MessageKey } from '../../i18n'
@@ -163,6 +165,13 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
   const step = stepsFor(values.method)
   const grinder = grinders.find((g) => g.id === values.grinderId)
   const scale = grinder?.grindScale
+  // ช่วงที่ผู้ผลิตแนะนำ (จากฐานข้อมูลอ้างอิง) — ใช้เป็นคำใบ้ + จุดเริ่มของปุ่ม +/− เมื่อยังไม่เคยชง
+  const guide = grindGuideFor(getGearModel(grinder?.catalogId), values.method)
+  const grindHint = [
+    scale ? t('brew.form.grindRange', { min: scale.min, max: scale.max }) : '',
+    guide ? t('brew.form.grindGuide', { min: guide.min, max: guide.max, method: METHOD_LABEL[values.method] }) : '',
+  ].filter(Boolean).join(' · ') || undefined
+  const guideStart = guide ? snapToStep((guide.min + guide.max) / 2, scale?.step ?? 1, scale?.min ?? 0) : undefined
 
   // --- ค่าที่คำนวณสด ---
   const dose = parseNumber(values.doseG)
@@ -338,8 +347,8 @@ function BrewFormInner({ mode, brew, prefill, onStart, onDone, onGoToBeans, bean
       <div className="grid grid-cols-2 gap-3">
         <NumberStepper label={t('brew.form.grindSetting')} value={values.grindSetting}
           step={scale?.step ?? 1} min={scale?.min ?? 0} max={scale?.max}
-          start={reference?.grindSetting ?? (scale ? scale.min : undefined)}
-          hint={scale ? t('brew.form.grindRange', { min: scale.min, max: scale.max }) : undefined}
+          start={reference?.grindSetting ?? guideStart ?? (scale ? scale.min : undefined)}
+          hint={grindHint}
           error={err('grindSetting')} changedFrom={prev('grindSetting', '')}
           onChange={(v) => set('grindSetting', v)} />
         <NumberStepper label={t('brew.form.temp')} value={values.tempC} step={1} min={0} max={100}

@@ -5,6 +5,7 @@ import {
   isValidGrindScale,
   remainingDisplayG,
   remainingFraction,
+  snapToStep,
   stockLevel,
 } from './inventory'
 
@@ -64,5 +65,19 @@ describe('isValidGrindScale', () => {
     expect(isValidGrindScale({ min: 0, max: 10, step: 0 })).toBe(false)
     expect(isValidGrindScale({ min: 0, max: 10, step: 11 })).toBe(false)
     expect(isValidGrindScale({ min: 0, max: Number.NaN, step: 1 })).toBe(false)
+  })
+})
+
+describe('snapToStep', () => {
+  it('ปัดให้ตรงขั้นนับจากค่าต่ำสุด', () => {
+    expect(snapToStep(10, 1)).toBe(10)
+    expect(snapToStep(12.3, 0.5)).toBe(12.5)
+    expect(snapToStep(6.1, 0.25, 1)).toBe(6)
+    expect(snapToStep(5.5, 2, 1)).toBe(5)
+    expect(snapToStep(0.30000000000000004, 0.1)).toBe(0.3)
+  })
+  it('ขั้นไม่ถูกต้อง = คืนค่าเดิม', () => {
+    expect(snapToStep(7, 0)).toBe(7)
+    expect(snapToStep(7, -1)).toBe(7)
   })
 })

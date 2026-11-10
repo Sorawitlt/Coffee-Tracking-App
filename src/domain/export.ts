@@ -1,6 +1,6 @@
 import { brewMetrics, roundTo } from './calc'
 import { toCsv, type CsvColumn } from './csv'
-import { remainingDisplayG } from './inventory'
+import { GEAR_TYPES, remainingDisplayG } from './inventory'
 import type { Bean, Brew, Gear } from './types'
 
 /**
@@ -75,6 +75,9 @@ export function brewsToCsv(brews: readonly Brew[], beans: readonly Bean[], gear:
     { header: 'cost_per_cup', value: (r) => round(r.m.costPerCup, 2) },
     { header: 'currency', value: (r) => (r.m.costPerCup === undefined ? undefined : r.m.currency) },
     { header: 'notes', value: (r) => r.brew.notes },
+    // ต่อท้าย (ไม่แทรกกลาง) → สูตร/การอ้างคอลัมน์เดิมในชีตของผู้ใช้ไม่เลื่อน; ใช้ join กับไฟล์อุปกรณ์ได้
+    { header: 'grinder_id', value: (r) => r.brew.grinderId },
+    { header: 'brewer_id', value: (r) => r.brew.brewerId },
   ]
   return toCsv(rows, columns)
 }
@@ -100,6 +103,30 @@ export function beansToCsv(beans: readonly Bean[]): string {
     { header: 'archived', value: (b) => b.archived },
     { header: 'notes', value: (b) => b.notes },
     { header: 'created_at', value: (b) => toLocalDateTime(b.createdAt) },
+  ]
+  return toCsv(sorted, columns)
+}
+
+/**
+ * รายการอุปกรณ์ เรียงตามชนิด (ลำดับเดียวกับฟอร์ม) แล้วตามชื่อ
+ * ยี่ห้อ/รุ่น/รหัสรุ่นในฐานข้อมูลแยกคอลัมน์ → ใช้ทำทะเบียนอุปกรณ์ (Asset) หรือ map เข้ารหัสวัสดุใน ERP ได้ตรง ๆ
+ */
+export function gearToCsv(gear: readonly Gear[]): string {
+  const sorted = [...gear].sort(
+    (a, b) => GEAR_TYPES.indexOf(a.type) - GEAR_TYPES.indexOf(b.type) || a.name.localeCompare(b.name),
+  )
+  const columns: CsvColumn<Gear>[] = [
+    { header: 'gear_id', value: (g) => g.id },
+    { header: 'type', value: (g) => g.type },
+    { header: 'name', value: (g) => g.name },
+    { header: 'brand', value: (g) => g.brand },
+    { header: 'model', value: (g) => g.model },
+    { header: 'catalog_id', value: (g) => g.catalogId },
+    { header: 'grind_min', value: (g) => g.grindScale?.min },
+    { header: 'grind_max', value: (g) => g.grindScale?.max },
+    { header: 'grind_step', value: (g) => g.grindScale?.step },
+    { header: 'notes', value: (g) => g.notes },
+    { header: 'created_at', value: (g) => toLocalDateTime(g.createdAt) },
   ]
   return toCsv(sorted, columns)
 }

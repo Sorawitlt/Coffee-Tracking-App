@@ -1,13 +1,20 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { addGear, deleteGear, updateGear } from '../../db'
 import { Button } from '../../components/Button'
 import { NumberField, SelectField, TextAreaField, TextField } from '../../components/fields'
+import { catalogBrands, getGearModel, type GearModel } from '../../domain/catalog'
 import { GEAR_TYPES } from '../../domain/inventory'
 import type { Gear, GearType } from '../../domain/types'
 import type { MessageKey } from '../../i18n'
 import { useT } from '../../i18n/I18nProvider'
+import { CatalogCard } from '../catalog/CatalogCard'
+import { CatalogPicker } from '../catalog/CatalogPicker'
 import { GEAR_TYPE_KEY } from '../labels'
-import { emptyGearForm, gearToForm, validateGearForm, type GearFormErrors, type GearFormValues } from './gearForm'
+import {
+  applyCatalogModel, emptyGearForm, gearToForm, unlinkCatalog, validateGearForm, type GearFormErrors, type GearFormValues,
+} from './gearForm'
+
+const BRANDS = catalogBrands()
 
 interface Props {
   /** ไม่ส่ง = เพิ่มอุปกรณ์ใหม่ */
@@ -22,10 +29,18 @@ export function GearForm({ gear, onDone }: Props) {
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [actionError, setActionError] = useState<MessageKey>()
+  const brandListId = useId()
+  const linked = getGearModel(values.catalogId || undefined)
 
   const set = <K extends keyof GearFormValues>(key: K, value: GearFormValues[K]) => {
     setValues((v) => ({ ...v, [key]: value }))
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }))
+  }
+
+  function pickModel(model: GearModel) {
+    setValues((v) => applyCatalogModel(v, model))
+    // ค่าที่เติมให้อาจแก้ error ที่ค้างอยู่ (เช่น ชื่อว่าง)
+    setErrors({})
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -59,12 +74,36 @@ export function GearForm({ gear, onDone }: Props) {
     <form onSubmit={onSubmit} noValidate className="space-y-4" aria-label={t(gear ? 'gear.form.edit' : 'gear.form.add')}>
       <h2 className="text-xl font-bold">{t(gear ? 'gear.form.edit' : 'gear.form.add')}</h2>
 
-      <SelectField label={t('gear.form.type')} required value={values.type} onChange={(e) => set('type', e.target.value as GearType)}>
+      {linked ? (
+        <CatalogCard model={linked} onUnlink={() => setValues(unlinkCatalog)} />
+      ) : (
+        <>
+          {values.catalogId && (
+            <p className="rounded-xl bg-stone-100 p-3 text-sm dark:bg-stone-800">{t('catalog.card.missing')}</p>
+          )}
+          {/* ยังไม่ได้เชื่อม: เดารุ่นจากรุ่น/ชื่อที่กรอก (เช่น อุปกรณ์เดิมชื่อ "DF64") */}
+          <CatalogPicker onPick={pickModel} suggestFrom={values.model ? `${values.brand} ${values.model}` : values.name} />
+        </>
+      )}
+
+      <SelectField label={t('gear.form.type')} required value={values.type} onChange={(e) => set('type', e.target.value as GearType)}
+        hint={linked && linked.type !== values.type ? t('catalog.typeMismatch') : undefined}>
         {GEAR_TYPES.map((type) => <option key={type} value={type}>{t(GEAR_TYPE_KEY[type])}</option>)}
       </SelectField>
 
       <TextField label={t('gear.form.name')} required value={values.name} error={err('name')}
+        hint={t('gear.form.nameHint')}
         placeholder={t('gear.form.namePlaceholder')} onChange={(e) => set('name', e.target.value)} />
+
+      <div className="grid grid-cols-2 gap-3">
+        <TextField label={t('gear.form.brand')} value={values.brand} list={brandListId} autoComplete="off"
+          onChange={(e) => set('brand', e.target.value)} />
+        <TextField label={t('gear.form.model')} value={values.model} autoComplete="off"
+          onChange={(e) => set('model', e.target.value)} />
+      </div>
+      <datalist id={brandListId}>
+        {BRANDS.map((b) => <option key={b} value={b} />)}
+      </datalist>
 
       {values.type === 'grinder' && (
         <fieldset className="space-y-2">

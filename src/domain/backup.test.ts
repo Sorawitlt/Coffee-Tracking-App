@@ -14,7 +14,8 @@ const bean: Bean = {
 }
 
 const grinder: Gear = {
-  id: 'g-1', type: 'grinder', name: 'Comandante', grindScale: { min: 0, max: 40, step: 1 }, notes: 'ใหม่', createdAt: T, updatedAt: T,
+  id: 'g-1', type: 'grinder', name: 'Comandante', brand: 'Comandante', model: 'C40 MK4 Nitro Blade', catalogId: 'comandante-c40-mk4',
+  grindScale: { min: 0, max: 40, step: 1 }, notes: 'ใหม่', createdAt: T, updatedAt: T,
 }
 
 const myRecipe: Recipe = {
@@ -140,6 +141,23 @@ describe('parseBackup — ไฟล์ที่ถูกต้อง', () => {
     expect(result.backup.brews[0]).toEqual(fullBrew)
     expect(result.backup.recipes[0]).toEqual(myRecipe)
     expect(result.backup.gear[0]).toEqual(grinder)
+  })
+
+  it('ไฟล์สำรองเก่าที่อุปกรณ์ยังไม่มียี่ห้อ/รุ่น/รหัสฐานข้อมูล → นำเข้าได้', () => {
+    const f = file()
+    delete f.data.gear[0].brand
+    delete f.data.gear[0].model
+    delete f.data.gear[0].catalogId
+    const result = parse(f)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.backup.gear[0]).toEqual({ ...grinder, brand: undefined, model: undefined, catalogId: undefined } satisfies Gear)
+  })
+
+  it('ยี่ห้อ/รุ่นผิดชนิด → ปฏิเสธพร้อมบอกช่อง', () => {
+    const f = file()
+    f.data.gear[0].brand = 42
+    const result = parse(f)
+    expect(result).toEqual({ ok: false, error: { code: 'invalidRecord', table: 'gear', index: 0, field: 'brand' } })
   })
 
   it('ฟิลด์ตัวเลือกเป็น null → ถือว่าไม่มีค่า', () => {

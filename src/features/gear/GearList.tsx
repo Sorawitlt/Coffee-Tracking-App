@@ -1,4 +1,6 @@
 import { listGear, useLive } from '../../db'
+import { gearModelName, getGearModel } from '../../domain/catalog'
+import type { Gear } from '../../domain/types'
 import { Button } from '../../components/Button'
 import { useT } from '../../i18n/I18nProvider'
 import { GEAR_TYPE_ICON, GEAR_TYPE_KEY } from '../labels'
@@ -38,9 +40,11 @@ export function GearList({ onAdd, onOpen }: Props) {
                 <span aria-hidden className="text-2xl">{GEAR_TYPE_ICON[g.type]}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{g.name}</span>
+                  {brandModel(g) && <span className="block truncate text-sm text-stone-700 dark:text-stone-300">{brandModel(g)}</span>}
                   <span className="block text-sm text-stone-600 dark:text-stone-400">
                     {t(GEAR_TYPE_KEY[g.type])}
                     {g.grindScale && t('gear.list.scale', { min: g.grindScale.min, max: g.grindScale.max, step: g.grindScale.step })}
+                    {g.catalogId && getGearModel(g.catalogId) && t('gear.list.catalog')}
                   </span>
                 </span>
               </button>
@@ -50,4 +54,10 @@ export function GearList({ onAdd, onOpen }: Props) {
       )}
     </section>
   )
+}
+
+/** "ยี่ห้อ รุ่น" ใต้ชื่อ — ไม่แสดงถ้าซ้ำกับชื่อที่ตั้งไว้ (เช่น ชื่อ "Flair 58 Plus 2" ของยี่ห้อ Flair Espresso) */
+function brandModel(g: Gear): string | undefined {
+  const text = g.brand && g.model ? gearModelName({ brand: g.brand, model: g.model }) : (g.brand ?? g.model)
+  return text && text !== g.name ? text : undefined
 }
